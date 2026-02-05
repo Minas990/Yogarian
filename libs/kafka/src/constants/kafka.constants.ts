@@ -1,6 +1,5 @@
-export const KAFKA_BROKER = "localhost:9093";
-export const KAFKA_CLIENT_ID = 'yoga';
-export const KAFKA_CONSUMER_GROUP = 'yoga-consumer';
+export const KAFKA_BROKER = "localhost:9093";//default broker address for development and testing- **i'll deleted** 
+export const KAFKA_SERVICE = 'KAFKA_SERVICE';//token name
 
 export const KAFKA_TOPICS = {
     USER_REGISTERED: 'user.registered',
