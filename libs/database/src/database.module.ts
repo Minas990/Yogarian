@@ -10,6 +10,7 @@ import { EntityClassOrSchema } from '@nestjs/typeorm/dist/interfaces/entity-clas
       inject:[ConfigService],
       useFactory: (cs : ConfigService) => {
         return {
+          type: 'postgres',
           url : cs.get<string>('DATABASE_URL'),
           retryAttempts : 5,
           retryDelay : 3000,
