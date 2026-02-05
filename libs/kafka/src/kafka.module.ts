@@ -8,7 +8,7 @@ import { KAFKA_BROKER, KAFKA_SERVICE } from './constants/kafka.constants';
 })
 export class KafkaModule 
 {
-  static register(consumerGroup: string):DynamicModule
+  static register(consumerGroup?: string):DynamicModule
   {
     return  {
 
