@@ -160,7 +160,7 @@ export class AuthServiceService implements OnModuleInit
       email: newEmail,
       isEmailConfirmed: false,
     });
-    this.kafka.emit(KAFKA_TOPICS.USER_EMAIL_UPDATED,{userId,newEmail});
+    this.kafka.emit(KAFKA_TOPICS.USER_EMAIL_UPDATED,{userId,email:newEmail});
   }
 
   private isValidEmail(email: string): boolean {
