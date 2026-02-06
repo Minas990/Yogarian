@@ -1,4 +1,5 @@
-import { IsEmail, IsNotEmpty, IsString, IsUUID } from "class-validator";
+import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString, IsUUID } from "class-validator";
+import { Roles } from "../types";
 
 //for auth service
 export class CreateUserDto 
@@ -14,6 +15,10 @@ export class CreateUserDto
     @IsNotEmpty()
     @IsString()
     name: string;
+
+    @IsEnum(Roles)
+    @IsOptional()
+    role?: Roles = Roles.USER;
 }
 
 //for user service
