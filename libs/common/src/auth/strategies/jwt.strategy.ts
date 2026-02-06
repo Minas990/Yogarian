@@ -12,7 +12,8 @@ export class JwtStrategy extends PassportStrategy(Strategy)
         super({
             jwtFromRequest: ExtractJwt.fromExtractors(
                 [
-                    ExtractJwt.fromAuthHeaderAsBearerToken()
+                    ExtractJwt.fromAuthHeaderAsBearerToken(),
+                    (req) => req?.cookies?.jwt
                 ]
             ),
             ignoreExpiration: false,
@@ -20,12 +21,15 @@ export class JwtStrategy extends PassportStrategy(Strategy)
         });
     }
 
-    validate(payload:any) : UserTokenPayload
+    validate(payload:UserTokenPayload) : UserTokenPayload
     {
         return {
             userId: payload.userId,
             email: payload.email,
-            role: payload.role
+            role: payload.role,
+            isEmailConfirmed: payload.isEmailConfirmed,
+            iat: payload.iat,
+            exp: payload.exp,
         }
     }
 }

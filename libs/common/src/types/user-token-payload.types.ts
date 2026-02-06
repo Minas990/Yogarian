@@ -5,5 +5,8 @@ export interface UserTokenPayload
     //global uuid
     userId:string,
     email: string,
-    role: Roles
+    role: Roles,
+    isEmailConfirmed: boolean,
+    iat?: number,
+    exp?: number,
 }
