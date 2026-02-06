@@ -1,11 +1,16 @@
 import { AbstractEntity } from "@app/database/database.entity";
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from "typeorm";
+import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from "typeorm";
+import { User } from "./user.model";
 
 @Entity()
 export class Photo extends AbstractEntity<Photo> {
 
     @PrimaryGeneratedColumn()
     id:number;
+
+    @OneToOne(() => User, user => user.photo, {onDelete:'CASCADE'})
+    @JoinColumn()
+    user: User;
     @Column()
     url: string;
 

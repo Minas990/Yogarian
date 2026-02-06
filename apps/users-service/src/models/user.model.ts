@@ -19,8 +19,7 @@ export class User extends AbstractEntity<User>
     @OneToMany(() => Follow, follow => follow.follower)
     following: Follow[];
     
-    @OneToOne(() => Photo, {cascade:true,eager:true})
-    @JoinColumn()
+    @OneToOne(() => Photo, photo => photo.user, {cascade:true,eager:true})
     photo: Photo;
 
     //the userId is a uuid that will be used for authentication and as a reference in other services while the id from AbstractEntity is an auto-incremented integer used as the primary key in the database

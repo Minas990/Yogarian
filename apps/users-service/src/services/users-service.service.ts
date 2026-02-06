@@ -1,6 +1,6 @@
 import {  Injectable } from '@nestjs/common';
 import { User } from '../models/user.model';
-import { CreateUserProfileDto, PhotoMetadataDto, UpdateUserDto } from '@app/common';
+import { CloudinaryService, CreateUserProfileDto, PhotoMetadataDto, UpdateUserDto } from '@app/common';
 import { UserRepository } from '../repos/user.repostiroy';
 import { PhotoRepository } from '../repos/photo.repository';
 import { Photo } from '../models/photo.model';
@@ -11,6 +11,7 @@ export class UsersService
   constructor(
    private readonly UserRepo:UserRepository,
     private readonly PhotoRepo:PhotoRepository,
+    private readonly cloudinaryService: CloudinaryService
   )
   {
     
@@ -63,10 +64,16 @@ export class UsersService
     return this.UserRepo.findOneAndUpdate({ userId }, rest);
   }
 
+
+  // onDelete CASCADE is on Photo side now
+  //deleting user will automatically delete the photo record
   async deleteUser(userId:string)
   {
-    await this.UserRepo.findOneAndDelete({userId});
-    
+    const user = await this.UserRepo.findOne({userId}, {photo:true});
+    const photoPublicId = user.photo?.public_id;
+    await this.UserRepo.remove(user);
+    if(photoPublicId)
+      await this.cloudinaryService.deleteFile(photoPublicId);
   }
 
 }

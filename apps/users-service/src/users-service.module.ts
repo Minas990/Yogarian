@@ -13,6 +13,7 @@ import { UserRepository } from './repos/user.repostiroy';
 import { FollowRepository } from './repos/follow.repository';
 import { PhotoRepository } from './repos/photo.repository';
 import { FollowService } from './services/follow-serivice.service';
+import { CloudinaryModule } from '@app/common';
 
 @Module({
   imports: [
@@ -23,6 +24,7 @@ import { FollowService } from './services/follow-serivice.service';
     KafkaModule.register(),
     DatabaseModule,
     DatabaseModule.forFeature([User,Follow,Photo]),
+    CloudinaryModule
   ],
   controllers: [UserController],
   providers: [UsersService ,FollowService,JwtStrategy,JwtAuthGuard,UserRepository,FollowRepository,PhotoRepository],
