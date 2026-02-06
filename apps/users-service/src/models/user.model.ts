@@ -6,6 +6,8 @@ import { Photo } from "./photo.model";
 @Entity()
 export class User extends AbstractEntity<User>
 {
+    @PrimaryGeneratedColumn()
+    id: number;
     //we dont need to make unique 
     //the truth source here is authentication service
     @Column()
@@ -20,9 +22,6 @@ export class User extends AbstractEntity<User>
     @OneToOne(() => Photo, {cascade:true,eager:true})
     @JoinColumn()
     photo: Photo;
-
-    @CreateDateColumn()
-    created_at: Date;
 
     //the userId is a uuid that will be used for authentication and as a reference in other services while the id from AbstractEntity is an auto-incremented integer used as the primary key in the database
     //that will be transered to user 
