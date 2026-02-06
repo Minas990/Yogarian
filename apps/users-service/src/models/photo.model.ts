@@ -1,8 +1,11 @@
 import { AbstractEntity } from "@app/database/database.entity";
-import { Column, CreateDateColumn, Entity } from "typeorm";
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn } from "typeorm";
 
 @Entity()
 export class Photo extends AbstractEntity<Photo> {
+
+    @PrimaryGeneratedColumn()
+    id:number;
     @Column()
     url: string;
 
@@ -16,8 +19,6 @@ export class Photo extends AbstractEntity<Photo> {
     mimetype: string;
 
     
-    @CreateDateColumn()
-    createdAt: Date;
     constructor(entity?: Partial<Photo>) {
         super();
         Object.assign(this, entity);

@@ -15,6 +15,9 @@ import { AbstractEntity } from "@app/database/database.entity";
 export class Follow  extends AbstractEntity<Follow>
 {
 
+    @PrimaryGeneratedColumn()
+    id: number;
+    
     @Index()
     @Column({ name: 'followingId' })
     followingId: number;
