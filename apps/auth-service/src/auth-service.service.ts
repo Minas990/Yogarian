@@ -1,4 +1,4 @@
-import { BadRequestException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
@@ -6,6 +6,7 @@ import { CloudinaryService, CreateUserDto, PhotoMetadataDto, Roles } from '@app/
 import { AuthUserRepository } from './repo/user.repository';
 import { AuthUser } from './models/auth-user.model';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { UserRegisteredEvent } from './events/UserRegistered.event';
 
@@ -31,36 +32,38 @@ export class AuthServiceService implements OnModuleInit
   {
     if(!file)
         throw new BadRequestException('Profile photo is required');
-
+    const cloudinaryResult = await this.cloudinaryService.uploadFile(file,this.configService.getOrThrow<string>('CLOUDINARY_USER_PHOTO_FOLDER'));
     const user = new AuthUser({
       ...createUserDto,
       password : await bcrypt.hash(createUserDto.password,12)
     });
+    try {
+      const result = await this.authUserRepository.create(user);
 
-    const result = await this.authUserRepository.create(user);
-
-    const cloudinaryResult = await this.cloudinaryService.uploadFile(file,this.configService.getOrThrow<string>('CLOUDINARY_USER_PHOTO_FOLDER'));
-
-    this.kafka.emit<UserRegisteredEvent>(KAFKA_TOPICS.USER_REGISTERED,{
-      createUserDto : {
-          userId: result.userId,
+      this.kafka.emit<UserRegisteredEvent>(KAFKA_TOPICS.USER_REGISTERED,{
+        createUserDto : {
+            userId: result.userId,
+            email: result.email,
+            name: createUserDto.name,
+        },  
+        photo: {
+            url: cloudinaryResult.secure_url, 
+            public_id: cloudinaryResult.public_id,
+            filename: cloudinaryResult.original_filename,
+            mimetype: cloudinaryResult.mimetype,
+        }
+      });
+      return {
+        message:'User registered successfully',
+        user : {
           email: result.email,
-          name: createUserDto.name,
-      },  
-      photo: {
-          url: cloudinaryResult.secure_url, 
-          public_id: cloudinaryResult.public_id,
-          filename: cloudinaryResult.original_filename,
-          mimetype: cloudinaryResult.mimetype,
-      }
-    });
-    return {
-      message:'User registered successfully',
-      user : {
-        email: result.email,
-        photoUrl: cloudinaryResult.secure_url,
-      }
-    };
+          photoUrl: cloudinaryResult.secure_url,
+        }
+      };
+    } catch (error) {
+      await this.cloudinaryService.deleteFile(cloudinaryResult.public_id);
+      throw error;
+    }
   }
 
   async logIn(email:string , password:string ) : Promise<{token:string, user: AuthUser}>
@@ -70,7 +73,7 @@ export class AuthServiceService implements OnModuleInit
       const hashedPassword = user.password;
       if(!await bcrypt.compare(password,hashedPassword))
           throw new BadRequestException('Invalid credentials');
-      const token = this.signToken(user.userId,user.email,user.role);
+      const token = this.signToken(user.userId,user.email,user.role,user.isEmailConfirmed);
       return {token, user};
       
     } catch (error) { //findOne 
@@ -78,14 +81,64 @@ export class AuthServiceService implements OnModuleInit
     }
   }
 
-  async updateEmail()
+  async sendOtp(userId:string,email:string)
   {
-    this.kafka.emit(KAFKA_TOPICS.USER_EMAIL_UPDATED,{});
+    const otp = crypto.randomInt(100000, 999999).toString();
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    const otpExpiresAt = new Date(Date.now() + (this.configService.getOrThrow<number>('OTP_EXPIRATION_TIME') || 300000)); //default to 5 minutes
+    await this.authUserRepository.findOneAndUpdate({userId}, {otp:hashedOtp,otpExpiresAt});
+    this.kafka.emit(KAFKA_TOPICS.OTP_SENT,{userId,otp,email});
   }
 
-  async updatePassword()
+  async confirmEmail(userId:string,otp:string)
   {
+    const user = await this.authUserRepository.findOne({userId});
+    if(!user.otp)
+      throw new ForbiddenException('No otp found plz request for new one');
+    if(user.otpExpiresAt < new Date())
+      throw new ForbiddenException('OTP expired plz request for new one');
+    const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
+    if(!crypto.timingSafeEqual(Buffer.from(user.otp), Buffer.from(hashedOtp)))
+      throw new ForbiddenException('Invalid OTP');
+    return this.authUserRepository.findOneAndUpdate({userId},{isEmailConfirmed:true,otp:'',otpExpiresAt:new Date(0) as any});
+  }
 
+  async sendPasswordResetToken(email:string)
+  {
+    const user = await this.authUserRepository.findOne({email}).catch(() => null);
+    if(!user)
+    {
+      await new Promise(resolve => setTimeout(resolve, 100));
+      return;
+    }
+    const resetToken = crypto.randomBytes(32).toString('hex');
+    const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const resetTokenExpiresAt = new Date(Date.now() + (this.configService.get<number>('PASSWORD_RESET_TOKEN_EXPIRATION_TIME') || 3600000));
+    await this.authUserRepository.findOneAndUpdate({userId:user.userId}, {passwordResetToken:hashedResetToken,passwordResetTokenExpiresAt:resetTokenExpiresAt});
+    this.kafka.emit(KAFKA_TOPICS.PASSWORD_RESET_TOKEN_SENT,{userId:user.userId,resetToken,email});
+  }
+
+  async changePassword(resetToken:string,newPassword:string)
+  {
+    const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
+    const user = await this.authUserRepository.findOne({passwordResetToken:hashedResetToken});
+    if(user.passwordResetTokenExpiresAt < new Date())
+      throw new ForbiddenException('Reset token expired plz request for new one');
+    await this.authUserRepository.findOneAndUpdate({userId:user.userId},{
+      password: await bcrypt.hash(newPassword,12),
+      passwordResetToken: '',
+      passwordResetTokenExpiresAt: new Date(0) as any,
+    });
+  }
+
+  async updatePassword(userId:string,currentPassword:string,newPassword:string)
+  {
+    const user = await this.authUserRepository.findOne({userId});
+    if(!await bcrypt.compare(currentPassword,user.password))
+      throw new BadRequestException('Current password is incorrect');
+    return this.authUserRepository.findOneAndUpdate({userId},{
+      password: await bcrypt.hash(newPassword,12),
+    });
   }
 
   async deleteAccount(userId:string)
@@ -94,9 +147,9 @@ export class AuthServiceService implements OnModuleInit
     this.kafka.emit(KAFKA_TOPICS.USER_DELETED,{userId});
   }
 
-  private signToken(userId:string,email:string,userRole:Roles)
+  private signToken(userId:string,email:string,userRole:Roles,isEmailConfirmed:boolean)
   {
-    return this.jwtService.sign({userId,email,role:userRole});
+    return this.jwtService.sign({userId,email,role:userRole,isEmailConfirmed});
   }
 
 }

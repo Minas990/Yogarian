@@ -1,6 +1,6 @@
 import { Roles } from "@app/common";
 import { AbstractEntity } from "@app/database/database.entity";
-import { Column, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
+import { Column, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from "typeorm";
 
 
 @Entity()
@@ -16,8 +16,12 @@ export class AuthUser extends AbstractEntity<AuthUser>
     isEmailConfirmed: boolean;
     @Column({nullable:true})
     passwordChangedAt: Date;
-    @Column({nullable:true})
+    @Index()
+    @Column({nullable:true})    
     passwordResetToken: string;
+    @Column({nullable:true})
+    passwordResetTokenExpiresAt: Date;
+
     @Column({nullable:true})
     otp:string;
     @UpdateDateColumn()
@@ -28,6 +32,8 @@ export class AuthUser extends AbstractEntity<AuthUser>
         default: Roles.USER
     })
     role: Roles;
+    @Column({nullable:true})
+    otpExpiresAt: Date;
     constructor(partial: Partial<AuthUser>)
     {
         super()
