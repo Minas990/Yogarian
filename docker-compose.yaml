@@ -51,7 +51,7 @@ services:
     networks:
       - yoga-network
 
-  postgres:
+  postgres-users:
     image: postgres:15.1-alpine
     container_name: yoga-postgres-users
     ports:
@@ -61,7 +61,20 @@ services:
       POSTGRES_PASSWORD: users
       POSTGRES_DB: users
     volumes:
-      - postgres-data:/var/lib/postgresql/data
+      - postgres-users-data:/var/lib/postgresql/data
+    networks:
+      - yoga-network
+  postgres-auth:
+    image: postgres:15.1-alpine
+    container_name: yoga-postgres-auth
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: auth
+      POSTGRES_PASSWORD: auth
+      POSTGRES_DB: auth
+    volumes:
+      - postgres-auth-data:/var/lib/postgresql/data
     networks:
       - yoga-network
 
@@ -74,4 +87,5 @@ volumes:
   zookeeper-data:
   zookeeper-logs:
   kafka-data:
-  postgres-data:
+  postgres-users-data:
+  postgres-auth-data:
