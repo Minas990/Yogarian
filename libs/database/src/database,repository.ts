@@ -49,4 +49,9 @@ export class AbstractRepository<T extends AbstractEntity<T>>
         }
         return entity;
     }
+
+    async remove(entity: T)
+    {
+        return this.entityManager.remove(entity);
+    }
 }
