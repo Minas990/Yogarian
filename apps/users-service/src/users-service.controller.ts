@@ -36,8 +36,6 @@ export class UserController {
   @Put('me')
   async updateUser(@CurrentUser() user:UserTokenPayload,@Body() updateUserDto:UpdateUserDto  )
   {
-    if(updateUserDto.password)
-      throw new BadRequestException('Password cannot be updated through this endpoint');
     if(updateUserDto.email)
       throw new BadRequestException('Email cannot be updated through this endpoint');
     return this.usersService.updateUser(user.userId,updateUserDto);

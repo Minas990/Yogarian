@@ -1,8 +1,4 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { User } from '../models/user.model';
-import { Repository } from 'typeorm';
-import { CreateUserDto } from '@app/common/dtos/create-user.dto';
 import { Follow } from '../models/follow.model';
 import { FollowRepository } from '../repos/follow.repository';
 

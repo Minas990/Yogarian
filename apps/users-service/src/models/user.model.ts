@@ -1,6 +1,5 @@
 import { Column, CreateDateColumn, Entity, Index, JoinColumn, JoinTable, ManyToMany, OneToMany, OneToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
 import { Follow } from "./follow.model";
-import { Roles } from "@app/common";
 import { AbstractEntity } from "@app/database/database.entity";
 import { Photo } from "./photo.model";
 
@@ -13,8 +12,6 @@ export class User extends AbstractEntity<User>
     email:string;
     @Column()
     name:string;
-    @Column({type:'enum',enum:Roles,default:Roles.USER})
-    role: Roles;
     @OneToMany(() => Follow, follow => follow.following)
     followers: Follow[];
     @OneToMany(() => Follow, follow => follow.follower)

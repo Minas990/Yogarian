@@ -3,6 +3,7 @@ import { UsersServiceModule } from './users-service.module';
 import { ConfigService } from '@nestjs/config';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { KAFKA_BROKER } from '@app/kafka';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(UsersServiceModule);
@@ -22,6 +23,11 @@ async function bootstrap() {
       }
     }
   )
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+  }));
   await app.startAllMicroservices();
   await app.listen(configService.get('USERS_PORT') ?? 8002);
 }
