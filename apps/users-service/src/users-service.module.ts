@@ -9,6 +9,10 @@ import { Follow } from './models/follow.model';
 import { JwtStrategy } from '@app/common/auth/strategies/jwt.strategy';
 import { JwtAuthGuard } from '@app/common/auth/guards/jwt-auth.guard';
 import { Photo } from './models/photo.model';
+import { UserRepository } from './repos/user.repostiroy';
+import { FollowRepository } from './repos/follow.repository';
+import { PhotoRepository } from './repos/photo.repository';
+import { FollowService } from './services/follow-serivice.service';
 
 @Module({
   imports: [
@@ -21,6 +25,6 @@ import { Photo } from './models/photo.model';
     DatabaseModule.forFeature([User,Follow,Photo]),
   ],
   controllers: [UserController],
-  providers: [UsersService,JwtStrategy,JwtAuthGuard],
+  providers: [UsersService ,FollowService,JwtStrategy,JwtAuthGuard,UserRepository,FollowRepository,PhotoRepository],
 })
 export class UsersServiceModule {}
