@@ -3,9 +3,9 @@ export const KAFKA_SERVICE = 'KAFKA_SERVICE';//token name
 
 export const KAFKA_TOPICS = {
     USER_REGISTERED: 'user.registered',
-    USER_LOGIN:'user.login',
-    PASSWORD_RESET_REQUESTED:'user.password-reset-requested',
-
+    USER_DELETED: 'user.deleted',
+    USER_EMAIL_UPDATED: 'user.email.updated',
+    USER_IMAGE_UPDATED: 'user.image.updated',
 } as const;
 
 export type KafkaTopics = (typeof KAFKA_TOPICS)[keyof typeof KAFKA_TOPICS];
