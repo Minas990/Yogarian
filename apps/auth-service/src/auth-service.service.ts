@@ -147,6 +147,27 @@ export class AuthServiceService implements OnModuleInit
     this.kafka.emit(KAFKA_TOPICS.USER_DELETED,{userId});
   }
 
+  async updateEmail(userId:string,newEmail:string)
+  {
+    if (!this.isValidEmail(newEmail))
+      throw new BadRequestException('Invalid email format');
+    
+    const existingUser = await this.authUserRepository.findOne({email: newEmail}).catch(() => null);
+    if (existingUser)
+      throw new BadRequestException('Email already in use');
+    
+    await this.authUserRepository.findOneAndUpdate({userId},{
+      email: newEmail,
+      isEmailConfirmed: false,
+    });
+    this.kafka.emit(KAFKA_TOPICS.USER_EMAIL_UPDATED,{userId,newEmail});
+  }
+
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email) && email.length <= 255;
+  }
+
   private signToken(userId:string,email:string,userRole:Roles,isEmailConfirmed:boolean)
   {
     return this.jwtService.sign({userId,email,role:userRole,isEmailConfirmed});

@@ -89,6 +89,17 @@ export class AuthServiceController {
   }
 
   @UseGuards(JwtAuthGuard)
+  @Patch('updateEmail')
+  async updateEmail(@CurrentUser() user : UserTokenPayload,@Body('newEmail') newEmail: string,@Res({passthrough:true}) res: Response)
+  {
+    await this.authServiceService.updateEmail(user.userId,newEmail);
+    res.clearCookie('jwt');
+    return {
+      message:'Email updated successfully- please log in again',
+    }
+  }
+
+  @UseGuards(JwtAuthGuard)
   @Delete('')
   async deleteAccount(@CurrentUser() user : UserTokenPayload)
    {
