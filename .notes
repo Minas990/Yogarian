@@ -3,3 +3,5 @@ cannot send binary values via kafka
 user service will delete the photo
 
 we need to add throttler
+
+synchronization problem in created_at between all entities
