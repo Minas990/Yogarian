@@ -1,3 +1,2 @@
-export * from './create-user.dto';
-export * from './update-user.dto';
 export * from './photo-metadata.dto';
+export * from './user-profile.dto';

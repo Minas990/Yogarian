@@ -1,9 +1,9 @@
 
-import { CreateDateColumn, PrimaryGeneratedColumn } from "typeorm";
+import { Column } from "typeorm";
 
 export  class AbstractEntity<T>
 {
-    @CreateDateColumn()
+    @Column()
     createdAt: Date;
     constructor()
     {

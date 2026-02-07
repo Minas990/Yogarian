@@ -5,7 +5,6 @@ export const KAFKA_TOPICS = {
     USER_REGISTERED: 'user.registered',
     USER_DELETED: 'user.deleted',
     USER_EMAIL_UPDATED: 'user.email.updated',
-    USER_IMAGE_UPDATED: 'user.image.updated',
     OTP_SENT: 'otp.sent',
     PASSWORD_RESET_TOKEN_SENT: 'password.reset.token.sent',
 } as const;

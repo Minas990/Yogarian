@@ -4,3 +4,5 @@ export * from './auth';
 export * from './dtos';
 export * from './types';
 export * from './cloudinary';
+export * from './rate-limiter';
+export * from './events';
