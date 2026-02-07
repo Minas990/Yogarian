@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthServiceController } from './auth-service.controller';
 import { AuthServiceService } from './auth-service.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CloudinaryModule, JwtStrategy } from '@app/common';
+import { CloudinaryModule, JwtStrategy, RateLimiterModule } from '@app/common';
 import { DatabaseModule } from '@app/database';
 import { KafkaModule } from '@app/kafka';
 import { JwtModule } from '@nestjs/jwt';
@@ -13,6 +13,7 @@ import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { DatabaseErrorFilter } from './filters/database-error.filter';
 import { APP_FILTER } from '@nestjs/core';
+import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.guard';
 
 @Module({
   imports: [
@@ -36,12 +37,31 @@ import { APP_FILTER } from '@nestjs/core';
         signOptions: {expiresIn:cs.get('JWT_EXPIRES_IN') || '1h'}
       })
     }),
+    RateLimiterModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (cs: ConfigService) => ({
+        throttlers: [
+          {
+            name: 'short',
+            ttl: Number(cs.getOrThrow('RATE_LIMIT_SHORT_TTL')),
+            limit: Number(cs.getOrThrow('RATE_LIMIT_SHORT_LIMIT')),
+          },
+          {
+            name: 'sensitive',
+            ttl: Number(cs.getOrThrow('RATE_LIMIT_SENSITIVE_TTL')),
+            limit: Number(cs.getOrThrow('RATE_LIMIT_SENSITIVE_LIMIT')),
+          },
+        ],
+      }),
+    })
   ],
   controllers: [AuthServiceController],
   providers: [
     AuthServiceService,
     JwtStrategy,
     AuthUserRepository,
+    ShortThrottleGuard,
+    SensitiveThrottleGuard,
     {
       provide: APP_FILTER,
       useClass: DatabaseErrorFilter,

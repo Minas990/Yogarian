@@ -1,18 +1,19 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, OnModuleInit } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { CloudinaryService, CreateUserDto, PhotoMetadataDto, Roles } from '@app/common';
+import { CloudinaryService, Roles, UserRegisteredEvent, OtpSentEvent, PasswordResetTokenSentEvent, UserDeletedEvent, UserEmailUpdatedEvent } from '@app/common';
+import { CreateUserDto } from './dtos/create-user.dto';
 import { AuthUserRepository } from './repo/user.repository';
 import { AuthUser } from './models/auth-user.model';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
-import { UserRegisteredEvent } from './events/UserRegistered.event';
 
 @Injectable()
 export class AuthServiceService implements OnModuleInit
 {
+  private logger = new Logger(AuthServiceService.name);
   constructor(
     private readonly authUserRepository: AuthUserRepository,
     private readonly jwtService: JwtService,
@@ -30,29 +31,32 @@ export class AuthServiceService implements OnModuleInit
 
   async signUp(createUserDto: CreateUserDto,file: Express.Multer.File)
   {
-    if(!file)
-        throw new BadRequestException('Profile photo is required');
+
     const cloudinaryResult = await this.cloudinaryService.uploadFile(file,this.configService.getOrThrow<string>('CLOUDINARY_USER_PHOTO_FOLDER'));
     const user = new AuthUser({
       ...createUserDto,
-      password : await bcrypt.hash(createUserDto.password,12)
+      password : await bcrypt.hash(createUserDto.password,12),
+      createdAt: new Date(),
     });
     try {
       const result = await this.authUserRepository.create(user);
-
-      this.kafka.emit<UserRegisteredEvent>(KAFKA_TOPICS.USER_REGISTERED,{
-        createUserDto : {
-            userId: result.userId,
-            email: result.email,
-            name: createUserDto.name,
-        },  
+      const event: UserRegisteredEvent = {
+        profile: {
+          userId: result.userId,
+          email: result.email,
+          name: createUserDto.name,
+          createdAt: result.createdAt,
+        },
         photo: {
-            url: cloudinaryResult.secure_url, 
-            public_id: cloudinaryResult.public_id,
-            filename: cloudinaryResult.original_filename,
-            mimetype: cloudinaryResult.mimetype,
-        }
-      });
+          url: cloudinaryResult.secure_url,
+          public_id: cloudinaryResult.public_id,
+          filename: cloudinaryResult.original_filename, 
+          mimetype: cloudinaryResult.mimetype,
+        },
+      };
+      this.kafka.emit<UserRegisteredEvent>(KAFKA_TOPICS.USER_REGISTERED,event);
+      this.logger.log(`User registered with email: ${result.email}`);
+      this.logger.debug(`Emitted Kafka event: ${KAFKA_TOPICS.USER_REGISTERED} for userId: ${result.userId}, data:${JSON.stringify(event)} `);
       return {
         message:'User registered successfully',
         user : {
@@ -87,7 +91,7 @@ export class AuthServiceService implements OnModuleInit
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
     const otpExpiresAt = new Date(Date.now() + (this.configService.getOrThrow<number>('OTP_EXPIRATION_TIME') || 300000)); //default to 5 minutes
     await this.authUserRepository.findOneAndUpdate({userId}, {otp:hashedOtp,otpExpiresAt});
-    this.kafka.emit(KAFKA_TOPICS.OTP_SENT,{userId,otp,email});
+    this.kafka.emit<OtpSentEvent>(KAFKA_TOPICS.OTP_SENT,{userId,otp,email} as OtpSentEvent);
   }
 
   async confirmEmail(userId:string,otp:string)
@@ -115,7 +119,7 @@ export class AuthServiceService implements OnModuleInit
     const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
     const resetTokenExpiresAt = new Date(Date.now() + (this.configService.get<number>('PASSWORD_RESET_TOKEN_EXPIRATION_TIME') || 3600000));
     await this.authUserRepository.findOneAndUpdate({userId:user.userId}, {passwordResetToken:hashedResetToken,passwordResetTokenExpiresAt:resetTokenExpiresAt});
-    this.kafka.emit(KAFKA_TOPICS.PASSWORD_RESET_TOKEN_SENT,{userId:user.userId,resetToken,email});
+    this.kafka.emit<PasswordResetTokenSentEvent>(KAFKA_TOPICS.PASSWORD_RESET_TOKEN_SENT,{userId:user.userId,resetToken,email} as PasswordResetTokenSentEvent);
   }
 
   async changePassword(resetToken:string,newPassword:string)
@@ -144,7 +148,7 @@ export class AuthServiceService implements OnModuleInit
   async deleteAccount(userId:string)
   {
     await this.authUserRepository.findOneAndDelete({userId});
-    this.kafka.emit(KAFKA_TOPICS.USER_DELETED,{userId});
+    this.kafka.emit<UserDeletedEvent>(KAFKA_TOPICS.USER_DELETED,{userId} as UserDeletedEvent);
   }
 
   async updateEmail(userId:string,newEmail:string)
@@ -160,7 +164,7 @@ export class AuthServiceService implements OnModuleInit
       email: newEmail,
       isEmailConfirmed: false,
     });
-    this.kafka.emit(KAFKA_TOPICS.USER_EMAIL_UPDATED,{userId,email:newEmail});
+    this.kafka.emit<UserEmailUpdatedEvent>(KAFKA_TOPICS.USER_EMAIL_UPDATED,{userId,email:newEmail} as UserEmailUpdatedEvent);
   }
 
   private isValidEmail(email: string): boolean {

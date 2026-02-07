@@ -1,22 +1,28 @@
 import { Body, Controller, Get, Post, Res, UseInterceptors, UploadedFile, Delete, UseGuards, Param, BadRequestException, Patch } from '@nestjs/common';
+import { CurrentUser, JwtAuthGuard, type UserTokenPayload } from '@app/common';
 import { AuthServiceService } from './auth-service.service';
-import { CreateUserDto, CurrentUser, JwtAuthGuard, type UserTokenPayload } from '@app/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {type Response } from 'express';
+import { type Response } from 'express';
+import { CreateUserDto } from './dtos/create-user.dto';
+import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.guard';
 
 @Controller('auth')
 export class AuthServiceController {
   constructor(private readonly authServiceService: AuthServiceService) {}
 
-
+  
   @UseInterceptors(FileInterceptor('file'))
   @Post('signup')
+  @UseGuards(ShortThrottleGuard)
   async signUp(@Body() user: CreateUserDto, @UploadedFile() file: Express.Multer.File)
   {
+    if(!file)
+      throw new BadRequestException('Profile photo is required');
     return this.authServiceService.signUp(user,file);
   }
 
   @Post('login')
+  @UseGuards(ShortThrottleGuard)
   async logIn(@Body('email') email: string, @Body('password') password: string, @Res({passthrough:true}) res: Response)
   {
     const  {token,user} = await this.authServiceService.logIn(email,password);
@@ -31,11 +37,12 @@ export class AuthServiceController {
       message:'Login successful',
       user: {
         userId: user.userId,
-      }
+      },
+      token
     }
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, SensitiveThrottleGuard)
   @Post('sendOtp')
   async sendOtp(@CurrentUser() user : UserTokenPayload)
   {
@@ -47,11 +54,11 @@ export class AuthServiceController {
     }
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ShortThrottleGuard)
   @Post('confirmEmail')
-  async confirmEmail(@CurrentUser() user : UserTokenPayload, @Body() body: {otp: string},@Res({passthrough:true}) res: Response)
+  async confirmEmail(@CurrentUser() user : UserTokenPayload, @Body('otp') otp:string,@Res({passthrough:true}) res: Response)
   {
-    await this.authServiceService.confirmEmail(user.userId,body.otp);
+    await this.authServiceService.confirmEmail(user.userId,otp);
     res.clearCookie('jwt');
     return {
       message:'Email confirmed successfully'
@@ -59,6 +66,7 @@ export class AuthServiceController {
   }
 
   @Post('forgetPassword')
+  @UseGuards(SensitiveThrottleGuard)
   async forgetPassword(@Body('email') email: string)
   {
     await this.authServiceService.sendPasswordResetToken(email);
@@ -68,6 +76,7 @@ export class AuthServiceController {
   }
 
   @Patch('changePassword/:resetToken')
+  @UseGuards(SensitiveThrottleGuard)
   async changePassword(@Body('newPassword') newPassword: string, @Param('resetToken') resetToken: string)
   {
     await this.authServiceService.changePassword(resetToken,newPassword);
@@ -77,7 +86,7 @@ export class AuthServiceController {
   }
 
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ShortThrottleGuard)
   @Patch('updatePassword')
   async updatePassword(@CurrentUser() user : UserTokenPayload,@Body('currentPassword') currentPassword: string, @Body('newPassword') newPassword: string,@Res({passthrough:true}) res: Response)
   {
@@ -88,7 +97,7 @@ export class AuthServiceController {
     }
   }
 
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, ShortThrottleGuard)
   @Patch('updateEmail')
   async updateEmail(@CurrentUser() user : UserTokenPayload,@Body('newEmail') newEmail: string,@Res({passthrough:true}) res: Response)
   {
