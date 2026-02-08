@@ -5,7 +5,6 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { KAFKA_BROKER } from '@app/kafka';
 import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { expressRequestLoggerMiddleware } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(UsersServiceModule);
@@ -29,7 +28,6 @@ async function bootstrap() {
     whitelist: true,
     transform: true,
   }));
-  app.use(expressRequestLoggerMiddleware);
   await app.startAllMicroservices();
   await app.listen(configService.get('USERS_PORT') ?? 8002);
 }

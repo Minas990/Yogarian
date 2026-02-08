@@ -1,0 +1,73 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "dev:notifications-service",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "start:dev", "notifications-service"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "group": "services",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:auth-service",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "start:dev", "auth-service"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "group": "services",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:users-service",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "start:dev", "users-service"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "group": "services",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:all-services",
+      "dependsOrder": "parallel",
+      "dependsOn": [
+        "dev:notifications-service",
+        "dev:auth-service",
+        "dev:users-service"
+      ],
+      "problemMatcher": []
+    },
+    {
+      "label": "dev:kill-services",
+      "type": "process",
+      "command": "powershell",
+      "args": [
+        "-NoProfile",
+        "-Command",
+        "Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -match \"start:dev (notifications-service|auth-service|users-service)\" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+      ],
+      "presentation": {
+        "reveal": "always",
+        "panel": "shared",
+        "clear": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}

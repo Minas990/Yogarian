@@ -5,7 +5,6 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
 import { KAFKA_BROKER } from '@app/kafka';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { expressRequestLoggerMiddleware } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(NotificationsServiceModule);
@@ -27,7 +26,6 @@ async function bootstrap() {
     whitelist: true,
     transform: true,
   }));
-  app.use(expressRequestLoggerMiddleware);
   await app.startAllMicroservices();
   await app.listen(cs.get<number>('NOTIFICATIONS_PORT') ?? 8005);
 }

@@ -17,11 +17,9 @@ export class UserController {
     private readonly usersService: UsersService,
     private readonly followService: FollowService
   ) {}
-  private logger = new Logger(UserController.name);
 
   @EventPattern(KAFKA_TOPICS.USER_REGISTERED)
   async createUser(@Payload() event: UserRegisteredEvent) {
-    this.logger.log(`${KAFKA_TOPICS.USER_REGISTERED} event received for userId: ${event.profile.userId}, DATA : ${JSON.stringify(event)}`);
     await this.usersService.createUser(event.profile, event.photo);
   }
     
@@ -36,7 +34,7 @@ export class UserController {
   @Get(':userId')
   @UseGuards(LongThrottleGuard)
   async getUser(@Param('userId',ParseUUIDPipe) userId: string) {
-    return this.usersService.getUserById(userId);
+    return this.usersService.getUserById(userId, ['email']);
   }
 
 
@@ -46,6 +44,7 @@ export class UserController {
   @UseInterceptors(FileInterceptor('file'))
   async updateUser(@CurrentUser() user:UserTokenPayload, @Body() updateUserDto:UpdateUserDto, @UploadedFile() file?: Express.Multer.File)
   {
+    if(!Object.keys(updateUserDto).length && !file) throw new BadRequestException('No data provided for update');
     return this.usersService.updateUser(user.userId, updateUserDto, file);
   }
 

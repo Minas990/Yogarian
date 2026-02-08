@@ -23,6 +23,12 @@ export class UsersService
 
   async createUser(userDto:UserProfileDto, photoMetadata: PhotoMetadataDto) 
   {
+    this.logger.logInfo({
+      functionName: 'createUser',
+      message: `KAFKA event received for userId: ${userDto.userId}, email: ${userDto.email}`,
+      userId: userDto.userId,
+      additionalData: { email: userDto.email }
+    });
     const user = new User({
       ...userDto,
     });
@@ -45,9 +51,9 @@ export class UsersService
     return this.UserRepo.create(user);
   }
 
-  async getUserById(userId:string)
+  async getUserById(userId:string, exclude?: string[])
   {
-    return this.UserRepo.findOne({userId},{photo:true});
+    return this.UserRepo.findOne({userId},{photo:true}, exclude);
   }
 
   //create in the abstract repo only call .save() so
@@ -71,19 +77,20 @@ export class UsersService
         );
         
         newPhotoPublicId = cloudinaryResult.public_id;
-        
-        const photoEntity = new Photo({
+
+        const photoEntity = user.photo ?? new Photo();
+        Object.assign(photoEntity, {
           url: cloudinaryResult.secure_url,
           public_id: cloudinaryResult.public_id,
           filename: cloudinaryResult.original_filename,
-          mimetype: cloudinaryResult.mimetype,
+          mimetype: file.mimetype,
         });
-        
+
         user.photo = await this.PhotoRepo.create(photoEntity);
         Object.assign(user, updateUserDto);
         const result = await this.UserRepo.create(user);
-        
-        if (oldPhotoPublicId) 
+
+        if (oldPhotoPublicId && oldPhotoPublicId !== newPhotoPublicId) 
         {
           await this.cloudinaryService.deleteFile(oldPhotoPublicId);
         }

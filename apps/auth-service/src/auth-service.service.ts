@@ -52,7 +52,7 @@ export class AuthServiceService implements OnModuleInit
           url: cloudinaryResult.secure_url,
           public_id: cloudinaryResult.public_id,
           filename: cloudinaryResult.original_filename, 
-          mimetype: cloudinaryResult.mimetype,
+          mimetype: file.mimetype,
         },
       };
       this.kafka.emit<UserRegisteredEvent>(KAFKA_TOPICS.USER_REGISTERED,event);

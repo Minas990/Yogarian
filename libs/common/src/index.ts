@@ -8,5 +8,4 @@ export * from './rate-limiter';
 export * from './events';
 export * from './logger/app-logger.service';
 export * from './logger/logger.module';
-export * from './middleware/request-logger.middleware';
-export * from './middleware/express-request-logger.middleware';
+export * from './interceptors/request-logger.interceptor';

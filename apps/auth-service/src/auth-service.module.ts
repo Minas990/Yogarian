@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthServiceController } from './auth-service.controller';
 import { AuthServiceService } from './auth-service.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CloudinaryModule, JwtStrategy, RateLimiterModule, LoggerModule } from '@app/common';
+import { CloudinaryModule, JwtStrategy, RateLimiterModule, LoggerModule, RequestLoggerInterceptor } from '@app/common';
 import { DatabaseModule } from '@app/database';
 import { KafkaModule } from '@app/kafka';
 import { JwtModule } from '@nestjs/jwt';
@@ -12,7 +12,7 @@ import { AuthUser } from './models/auth-user.model';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { DatabaseErrorFilter } from './filters/database-error.filter';
-import { APP_FILTER } from '@nestjs/core';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.guard';
 
 @Module({
@@ -66,6 +66,10 @@ import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.
     {
       provide: APP_FILTER,
       useClass: DatabaseErrorFilter,
+    },
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: RequestLoggerInterceptor,
     },
   ],
 })

@@ -20,10 +20,17 @@ export class AbstractRepository<T extends AbstractEntity<T>>
         return this.entityManager.save(entity);
     }
 
-    async findOne(where: FindOptionsWhere<T> ,relations?:FindOptionsRelations<T>) 
+    async findOne(where: FindOptionsWhere<T> ,relations?:FindOptionsRelations<T>, exclude?: string[]) 
     {
         const entity = await this.entityRepository.findOne({where,relations});
         if(!entity) throw new NotFoundException('no such entity found');
+        
+        if(exclude && exclude.length > 0) {
+            exclude.forEach(field => {
+                delete entity[field];
+            });
+        }
+        
         return entity;
     }
 
