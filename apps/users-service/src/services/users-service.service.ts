@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../models/user.model';
-import { CloudinaryService, PhotoMetadataDto, UserProfileDto } from '@app/common';
+import { AppLoggerService, CloudinaryService, PhotoMetadataDto, UserProfileDto } from '@app/common';
 import { UserRepository } from '../repos/user.repostiroy';
 import { PhotoRepository } from '../repos/photo.repository';
 import { Photo } from '../models/photo.model';
@@ -10,12 +10,12 @@ import { UpdateUserDto } from '../dtos/update-user.dto';
 @Injectable()
 export class UsersService 
 {
-  private logger = new Logger(UsersService.name);
   constructor(
    private readonly UserRepo:UserRepository,
     private readonly PhotoRepo:PhotoRepository,
     private readonly cloudinaryService: CloudinaryService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly logger: AppLoggerService
   )
   {
     
@@ -35,6 +35,13 @@ export class UsersService
       createdAt: userDto.createdAt
     });
     user.photo = await this.PhotoRepo.create(photoEntity);
+    
+    this.logger.logInfo({
+      functionName: 'createUser',
+      message: `Creating user with email ${userDto.email}`,
+      userId: user.userId,
+      additionalData: { email: userDto.email }
+    });
     return this.UserRepo.create(user);
   }
 

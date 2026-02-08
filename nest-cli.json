@@ -59,7 +59,13 @@
       "entryFile": "main",
       "sourceRoot": "apps/notifications-service/src",
       "compilerOptions": {
-        "tsConfigPath": "apps/notifications-service/tsconfig.app.json"
+        "tsConfigPath": "apps/notifications-service/tsconfig.app.json",
+        "assets": [
+          {
+            "include": "html/**/*",
+            "outDir": "dist/apps/notifications-service"
+          }
+        ]
       }
     },
     "payments-service": {

@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Email Verification</title>
+</head>
+<body style="margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background-color: #f4f4f4;">
+    <table role="presentation" style="width: 100%; border-collapse: collapse;">
+        <tr>
+            <td align="center" style="padding: 40px 0;">
+                <table role="presentation" style="width: 600px; border-collapse: collapse; background-color: #ffffff; box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1); border-radius: 8px; overflow: hidden;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 40px 30px; text-align: center;">
+                            <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700;">Verify Your Email 🔐</h1>
+                        </td>
+                    </tr>
+                    
+                    <!-- Content -->
+                    <tr>
+                        <td style="padding: 40px 30px; text-align: center;">
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 0 0 30px 0;">
+                                We received a request to verify your email address. Use the code below to complete the verification:
+                            </p>
+                            
+                            <!-- OTP Box -->
+                            <div style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); padding: 3px; border-radius: 10px; display: inline-block; margin: 20px 0;">
+                                <div style="background-color: #ffffff; padding: 20px 40px; border-radius: 8px;">
+                                    <p style="color: #333333; font-size: 36px; font-weight: 700; letter-spacing: 8px; margin: 0; font-family: 'Courier New', monospace;">{{otp}}</p>
+                                </div>
+                            </div>
+                            
+                            <p style="color: #999999; font-size: 14px; line-height: 1.6; margin: 30px 0 0 0;">
+                                This code will expire in <strong style="color: #f5576c;">10 minutes</strong>.
+                            </p>
+                            
+                            <p style="color: #666666; font-size: 16px; line-height: 1.6; margin: 30px 0 0 0;">
+                                If you didn't request this code, please ignore this email or contact our support team if you have concerns.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Security Notice -->
+                    <tr>
+                        <td style="background-color: #fff3cd; padding: 20px 30px; border-left: 4px solid #ffc107;">
+                            <p style="color: #856404; font-size: 14px; margin: 0; line-height: 1.6;">
+                                ⚠️ <strong>Security Reminder:</strong> Never share this code with anyone. Our team will never ask for your verification code.
+                            </p>
+                        </td>
+                    </tr>
+                    
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color: #f8f9fa; padding: 30px; text-align: center; border-top: 1px solid #e9ecef;">
+                            <p style="color: #999999; font-size: 14px; margin: 0 0 10px 0;">
+                                © 2026 Yoga Service. All rights reserved.
+                            </p>
+                            <p style="color: #999999; font-size: 12px; margin: 0;">
+                                You're receiving this email to verify your account.
+                            </p>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
+</html>

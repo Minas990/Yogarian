@@ -16,7 +16,6 @@ export class DatabaseErrorFilter implements ExceptionFilter {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
 
-    this.logger.error(`Database Error: ${exception.message}`, exception.driverError);
 
     const driverError = exception.driverError as PostgresError;
 
@@ -60,7 +59,7 @@ export class DatabaseErrorFilter implements ExceptionFilter {
         error: 'Bad Request',
       });
     }
-
+    this.logger.error(`Database Error: ${exception.message}`, exception.driverError);
     // something idk
     return response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
       statusCode: HttpStatus.INTERNAL_SERVER_ERROR,

@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, On
 import { JwtService } from '@nestjs/jwt';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { CloudinaryService, Roles, UserRegisteredEvent, OtpSentEvent, PasswordResetTokenSentEvent, UserDeletedEvent, UserEmailUpdatedEvent } from '@app/common';
+import { CloudinaryService, Roles, UserRegisteredEvent, OtpSentEvent, PasswordResetTokenSentEvent, UserDeletedEvent, UserEmailUpdatedEvent, AppLoggerService } from '@app/common';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { AuthUserRepository } from './repo/user.repository';
 import { AuthUser } from './models/auth-user.model';
@@ -19,7 +19,8 @@ export class AuthServiceService implements OnModuleInit
     private readonly jwtService: JwtService,
     @Inject(KAFKA_SERVICE) private readonly kafka: ClientKafka,
     private readonly cloudinaryService: CloudinaryService,
-    private readonly configService: ConfigService
+    private readonly configService: ConfigService,
+    private readonly appLogger: AppLoggerService
   ) 
   {
 
@@ -55,8 +56,18 @@ export class AuthServiceService implements OnModuleInit
         },
       };
       this.kafka.emit<UserRegisteredEvent>(KAFKA_TOPICS.USER_REGISTERED,event);
-      this.logger.log(`User registered with email: ${result.email}`);
-      this.logger.debug(`Emitted Kafka event: ${KAFKA_TOPICS.USER_REGISTERED} for userId: ${result.userId}, data:${JSON.stringify(event)} `);
+      this.appLogger.logInfo({
+        functionName: 'signUp',
+        message: `User registered with email: ${result.email}`,
+        userId: result.userId,
+        additionalData: { email: result.email }
+      });
+      this.appLogger.logInfo({
+        functionName: 'signUp',
+        message: `Emitted Kafka event: ${KAFKA_TOPICS.USER_REGISTERED} for userId: ${result.userId}`,
+        userId: result.userId,
+        additionalData: { event }
+      });
       return {
         message:'User registered successfully',
         user : {
@@ -66,6 +77,12 @@ export class AuthServiceService implements OnModuleInit
       };
     } catch (error) {
       await this.cloudinaryService.deleteFile(cloudinaryResult.public_id);
+      this.appLogger.logError({
+        functionName: 'signUp',
+        problem: 'Failed to register user', 
+        error: error,
+        additionalData: { email: createUserDto.email }
+      });
       throw error;
     }
   }
@@ -92,6 +109,12 @@ export class AuthServiceService implements OnModuleInit
     const otpExpiresAt = new Date(Date.now() + (this.configService.getOrThrow<number>('OTP_EXPIRATION_TIME') || 300000)); //default to 5 minutes
     await this.authUserRepository.findOneAndUpdate({userId}, {otp:hashedOtp,otpExpiresAt});
     this.kafka.emit<OtpSentEvent>(KAFKA_TOPICS.OTP_SENT,{userId,otp,email} as OtpSentEvent);
+    this.appLogger.logInfo({
+      functionName: 'sendOtp',
+      message: `OTP sent to email: ${email} for userId: ${userId}`,
+      userId: userId,
+      additionalData: { email }
+    });
   }
 
   async confirmEmail(userId:string,otp:string)
@@ -120,6 +143,12 @@ export class AuthServiceService implements OnModuleInit
     const resetTokenExpiresAt = new Date(Date.now() + (this.configService.get<number>('PASSWORD_RESET_TOKEN_EXPIRATION_TIME') || 3600000));
     await this.authUserRepository.findOneAndUpdate({userId:user.userId}, {passwordResetToken:hashedResetToken,passwordResetTokenExpiresAt:resetTokenExpiresAt});
     this.kafka.emit<PasswordResetTokenSentEvent>(KAFKA_TOPICS.PASSWORD_RESET_TOKEN_SENT,{userId:user.userId,resetToken,email} as PasswordResetTokenSentEvent);
+    this.appLogger.logInfo({
+      functionName: 'sendPasswordResetToken',
+      message: `Password reset token sent to email: ${email} for userId: ${user.userId}`,
+      userId: user.userId,
+      additionalData: { email }
+    });
   }
 
   async changePassword(resetToken:string,newPassword:string)
@@ -149,6 +178,11 @@ export class AuthServiceService implements OnModuleInit
   {
     await this.authUserRepository.findOneAndDelete({userId});
     this.kafka.emit<UserDeletedEvent>(KAFKA_TOPICS.USER_DELETED,{userId} as UserDeletedEvent);
+    this.appLogger.logInfo({
+      functionName: 'deleteAccount',
+      message: `User account deleted for userId: ${userId}`,
+      userId: userId,
+    });
   }
 
   async updateEmail(userId:string,newEmail:string)
@@ -165,6 +199,12 @@ export class AuthServiceService implements OnModuleInit
       isEmailConfirmed: false,
     });
     this.kafka.emit<UserEmailUpdatedEvent>(KAFKA_TOPICS.USER_EMAIL_UPDATED,{userId,email:newEmail} as UserEmailUpdatedEvent);
+    this.appLogger.logInfo({
+      functionName: 'updateEmail',
+      message: `User email updated to ${newEmail} for userId: ${userId}`,
+      userId: userId,
+      additionalData: { newEmail }
+    });
   }
 
   private isValidEmail(email: string): boolean {

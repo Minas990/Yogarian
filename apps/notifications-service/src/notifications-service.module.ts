@@ -1,10 +1,21 @@
 import { Module } from '@nestjs/common';
 import { NotificationsServiceController } from './notifications-service.controller';
-import { NotificationsServiceService } from './notifications-service.service';
+import { KafkaModule } from '@app/kafka';
+import { ConfigModule } from '@nestjs/config';
+import { EmailModule } from './email/email.module';
+import { LoggerModule } from '@app/common';
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({
+      isGlobal: true,
+      envFilePath:['.env','./apps/notifications-service/.env'],
+    }),
+    KafkaModule.register(),
+    LoggerModule.forService('notifications-service'),
+    EmailModule,
+  ],
   controllers: [NotificationsServiceController],
-  providers: [NotificationsServiceService],
+  providers: [],
 })
 export class NotificationsServiceModule {}

@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthServiceController } from './auth-service.controller';
 import { AuthServiceService } from './auth-service.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CloudinaryModule, JwtStrategy, RateLimiterModule } from '@app/common';
+import { CloudinaryModule, JwtStrategy, RateLimiterModule, LoggerModule } from '@app/common';
 import { DatabaseModule } from '@app/database';
 import { KafkaModule } from '@app/kafka';
 import { JwtModule } from '@nestjs/jwt';
@@ -21,6 +21,7 @@ import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.
       isGlobal: true,
       envFilePath: ['.env','./apps/auth-service/.env']
     }),
+    LoggerModule.forService('auth-service'),
     KafkaModule.register(),
     DatabaseModule,
     DatabaseModule.forFeature([AuthUser]),
