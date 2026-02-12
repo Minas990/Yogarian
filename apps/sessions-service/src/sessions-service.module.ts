@@ -5,6 +5,17 @@ import { KafkaModule } from '@app/kafka';
 import { DatabaseModule } from '@app/database';
 import { CloudinaryModule, LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { SessionsService } from './services/sessions.service';
+import { ReviewsService } from './services/reviews.service';
+import { SessionsRepository } from './repos/sessions.repo';
+import { ReviewsRepository } from './repos/reviews.repo';
+import { SessionSubscriber } from './subscribers/session.subscriber';
+import { Session } from './models/session.model';
+import { Review } from './models/review.model';
+import { Photo } from './models/photo.model';
+import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @Module({
   imports: [
@@ -14,6 +25,10 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     }),
     KafkaModule.register(),
     DatabaseModule,
+    DatabaseModule.forFeature([Session, Review, Photo]),
+    MulterModule.register({
+      storage: memoryStorage()
+    }),
     CloudinaryModule,
         RateLimiterModule.registerAsync({
           inject: [ConfigService],
@@ -36,10 +51,17 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
   ],
   controllers: [SessionsServiceController],
   providers: [
+    SessionsService,
+    ReviewsService,
+    SessionsRepository,
+    ReviewsRepository,
+    SessionSubscriber,
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestLoggerInterceptor,
     },
+    MediumThrottleGuard,
+    LongThrottleGuard
   ],
 })
 export class SessionsServiceModule {}
