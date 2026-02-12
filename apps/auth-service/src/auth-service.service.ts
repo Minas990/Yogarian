@@ -106,8 +106,8 @@ export class AuthServiceService implements OnModuleInit
   {
     const otp = crypto.randomInt(100000, 999999).toString();
     const hashedOtp = crypto.createHash('sha256').update(otp).digest('hex');
-    const otpExpiresAt = new Date(Date.now() + (this.configService.getOrThrow<number>('OTP_EXPIRATION_TIME') || 300000)); //default to 5 minutes
-    await this.authUserRepository.findOneAndUpdate({userId}, {otp:hashedOtp,otpExpiresAt});
+    const otpExpiresAt = new Date(Date.now() + (Number(this.configService.get('OTP_EXPIRATION_TIME')) ?? 300000)); //default to 5 minutes
+    await this.authUserRepository.findOneAndUpdate({userId,isEmailConfirmed:false}, {otp:hashedOtp,otpExpiresAt});
     this.kafka.emit<OtpSentEvent>(KAFKA_TOPICS.OTP_SENT,{userId,otp,email} as OtpSentEvent);
     this.appLogger.logInfo({
       functionName: 'sendOtp',
@@ -135,12 +135,12 @@ export class AuthServiceService implements OnModuleInit
     const user = await this.authUserRepository.findOne({email}).catch(() => null);
     if(!user)
     {
-      await new Promise(resolve => setTimeout(resolve, 100));
+      await new Promise(resolve => setTimeout(resolve, 100));//good trick :) 
       return;
     }
     const resetToken = crypto.randomBytes(32).toString('hex');
     const hashedResetToken = crypto.createHash('sha256').update(resetToken).digest('hex');
-    const resetTokenExpiresAt = new Date(Date.now() + (this.configService.get<number>('PASSWORD_RESET_TOKEN_EXPIRATION_TIME') || 3600000));
+    const resetTokenExpiresAt = new Date(Date.now() + (Number(this.configService.get('PASSWORD_RESET_TOKEN_EXPIRATION_TIME')) ?? 3600000));
     await this.authUserRepository.findOneAndUpdate({userId:user.userId}, {passwordResetToken:hashedResetToken,passwordResetTokenExpiresAt:resetTokenExpiresAt});
     this.kafka.emit<PasswordResetTokenSentEvent>(KAFKA_TOPICS.PASSWORD_RESET_TOKEN_SENT,{userId:user.userId,resetToken,email} as PasswordResetTokenSentEvent);
     this.appLogger.logInfo({

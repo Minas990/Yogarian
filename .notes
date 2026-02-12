@@ -5,3 +5,8 @@ user service will delete the photo
 we need to add throttler
 
 synchronization problem in created_at between all entities
+
+postgis integration , subscriper for index -> scan the full table for the neareset x sessions is not worth it 
+
+critical bug found: 
+even after deleting the jwt token from the request the user can got it and enter the protected route because the jwt token is still valid and the user can use it until it expires

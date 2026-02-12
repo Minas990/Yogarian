@@ -16,6 +16,8 @@ import { FollowService } from './services/follow-serivice.service';
 import { CloudinaryModule, LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { APP_INTERCEPTOR } from '@nestjs/core';
+import { MulterModule } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 @Module({
   imports: [
@@ -26,6 +28,9 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     KafkaModule.register(),
     DatabaseModule,
     DatabaseModule.forFeature([User,Follow,Photo]),
+    MulterModule.register({
+      storage:memoryStorage()
+    }),
     CloudinaryModule,
     RateLimiterModule.registerAsync({
       inject: [ConfigService],

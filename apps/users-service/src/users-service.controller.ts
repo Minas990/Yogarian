@@ -4,7 +4,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { JwtAuthGuard } from '@app/common/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@app/common/auth/decorators/current-user.decorator';
-import { type UserTokenPayload, UserRegisteredEvent, UserImageUpdatedEvent, UserEmailUpdatedEvent, UserDeletedEvent } from '@app/common';
+import { type UserTokenPayload, UserRegisteredEvent, UserImageUpdatedEvent, UserEmailUpdatedEvent, UserDeletedEvent, EmailConfirmedGuard } from '@app/common';
 import { UsersService } from './services/users-service.service';
 import { FollowService } from './services/follow-serivice.service';
 import { UpdateUserDto } from './dtos/update-user.dto';
@@ -61,7 +61,7 @@ export class UserController {
     return  this.usersService.deleteUser(event.userId);  
   }
 
-  @UseGuards(JwtAuthGuard, MediumThrottleGuard)
+  @UseGuards(JwtAuthGuard, EmailConfirmedGuard,MediumThrottleGuard)
   @Post('follow/:followedId')
   async followUser(@CurrentUser() user:UserTokenPayload,@Param('followedId',ParseUUIDPipe) followedId:string)
   {
@@ -70,7 +70,7 @@ export class UserController {
     return this.followService.followUser(follower.id, followed.id);
   }
 
-  @UseGuards(JwtAuthGuard, MediumThrottleGuard)
+  @UseGuards(JwtAuthGuard,EmailConfirmedGuard ,MediumThrottleGuard)
   @Delete('unfollow/:followedId')
   async unfollowUser(@CurrentUser() user:UserTokenPayload,@Param('followedId',ParseUUIDPipe) followedId:string)
   {
