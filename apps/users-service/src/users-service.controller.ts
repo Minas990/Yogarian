@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Logger, Param, ParseUUIDPipe, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Delete, Get, Logger, Param, ParseUUIDPipe, Patch, Post, Put, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { KAFKA_TOPICS } from '@app/kafka';
@@ -9,13 +9,16 @@ import { UsersService } from './services/users-service.service';
 import { FollowService } from './services/follow-serivice.service';
 import { UpdateUserDto } from './dtos/update-user.dto';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
+import { LocationRepo } from './repos/location.repo';
+import { UpdateLocationDto } from './dtos/update-location.dto';
+import { SessionCreatedEvent } from '@app/common/events/session.created';
 
 
 @Controller('user')
 export class UserController {
   constructor(
     private readonly usersService: UsersService,
-    private readonly followService: FollowService
+    private readonly followService: FollowService,
   ) {}
 
   @EventPattern(KAFKA_TOPICS.USER_REGISTERED)
@@ -28,7 +31,7 @@ export class UserController {
   @Get('me')
   async getMe(@CurrentUser() user : UserTokenPayload)
   {
-    return this.usersService.getUserById(user.userId);
+    return this.usersService.getMe(user.userId);
   }
 
   @Get(':userId')
@@ -78,4 +81,20 @@ export class UserController {
     const followed = await this.usersService.getUserById(followedId);
     return this.followService.unfollowUser(follower.id, followed.id);
   }
+
+  @UseGuards(JwtAuthGuard,EmailConfirmedGuard ,MediumThrottleGuard)
+  @Patch('location')
+  async updateLocation(@CurrentUser() user:UserTokenPayload, @Body() updateLocationDto:UpdateLocationDto)
+  {
+    const wantedUser = await this.usersService.getUserById(user.userId, ['location']);
+    return this.usersService.updateUserLocation(wantedUser.id, updateLocationDto);
+  }
+
+
+  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
+  async handleSessionCreated(@Payload() event: SessionCreatedEvent) 
+  {
+    return this.usersService.handleSessionCreated(event);
+  }
+
 }

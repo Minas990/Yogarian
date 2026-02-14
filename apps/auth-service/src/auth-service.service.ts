@@ -2,7 +2,7 @@ import { BadRequestException, ForbiddenException, Inject, Injectable, Logger, On
 import { JwtService } from '@nestjs/jwt';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { CloudinaryService, Roles, UserRegisteredEvent, OtpSentEvent, PasswordResetTokenSentEvent, UserDeletedEvent, UserEmailUpdatedEvent, AppLoggerService } from '@app/common';
+import { CloudinaryService, Roles, UserRegisteredEvent, OtpSentEvent, PasswordResetTokenSentEvent, UserDeletedEvent, UserEmailUpdatedEvent, AppLoggerService, UserProfileDto } from '@app/common';
 import { CreateUserDto } from './dtos/create-user.dto';
 import { AuthUserRepository } from './repo/user.repository';
 import { AuthUser } from './models/auth-user.model';
@@ -44,9 +44,9 @@ export class AuthServiceService implements OnModuleInit
       const event: UserRegisteredEvent = {
         profile: {
           userId: result.userId,
-          email: result.email,
-          name: createUserDto.name,
-          createdAt: result.createdAt,
+          ...createUserDto,
+          createdAt: user.createdAt,
+          
         },
         photo: {
           url: cloudinaryResult.secure_url,

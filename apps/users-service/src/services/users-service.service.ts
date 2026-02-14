@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../models/user.model';
 import { AppLoggerService, CloudinaryService, PhotoMetadataDto, UserProfileDto } from '@app/common';
@@ -6,6 +6,14 @@ import { UserRepository } from '../repos/user.repostiroy';
 import { PhotoRepository } from '../repos/photo.repository';
 import { Photo } from '../models/photo.model';
 import { UpdateUserDto } from '../dtos/update-user.dto';
+import { UserLocation } from '../models/location.model';
+import { LocationRepo } from '../repos/location.repo';
+import { UpdateLocationDto } from '../dtos/update-location.dto';
+import { SessionCreatedEvent } from '@app/common/events/session.created';
+import { ClientKafka } from '@nestjs/microservices';
+import { KAFKA_SERVICE } from '@app/kafka';
+import { KAFKA_TOPICS } from '@app/kafka';
+import { SendSessionCreationToNearbyUsersEvent } from '@app/common/events/send-session-creation-to-nearby-users.event';
 
 @Injectable()
 export class UsersService 
@@ -15,13 +23,15 @@ export class UsersService
     private readonly PhotoRepo:PhotoRepository,
     private readonly cloudinaryService: CloudinaryService,
     private readonly configService: ConfigService,
-    private readonly logger: AppLoggerService
+    private readonly logger: AppLoggerService,
+    private readonly locationRepo: LocationRepo,
+    @Inject(KAFKA_SERVICE) private readonly kafkaClient: ClientKafka
   )
   {
     
   }
 
-  async createUser(userDto:UserProfileDto, photoMetadata: PhotoMetadataDto) 
+  async createUser(userDto:UserProfileDto , photoMetadata: PhotoMetadataDto) 
   {
     this.logger.logInfo({
       functionName: 'createUser',
@@ -29,8 +39,10 @@ export class UsersService
       userId: userDto.userId,
       additionalData: { email: userDto.email }
     });
+
     const user = new User({
       ...userDto,
+      location: undefined, // Location will be set separately if needed
     });
     
     const photoEntity = new Photo({
@@ -41,6 +53,20 @@ export class UsersService
       createdAt: userDto.createdAt
     });
     user.photo = await this.PhotoRepo.create(photoEntity);
+    
+    if(userDto.location)
+    {
+      const locationEntity = new UserLocation({
+        address: userDto.location.address,
+        createdAt: userDto.createdAt,
+        governorate: userDto.location.governorate,
+        point: {
+          type: "Point",
+          coordinates: [userDto.location.longitude, userDto.location.latitude]
+         }
+        })
+      user.location =await this.locationRepo.create(locationEntity);
+    }
     
     this.logger.logInfo({
       functionName: 'createUser',
@@ -54,6 +80,11 @@ export class UsersService
   async getUserById(userId:string, exclude?: string[])
   {
     return this.UserRepo.findOne({userId},{photo:true}, exclude);
+  }
+
+  async getMe(userId:string)
+  {
+    return this.UserRepo.findOne({userId}, {photo:true, location:true});
   }
 
   //create in the abstract repo only call .save() so
@@ -115,14 +146,45 @@ export class UsersService
   }
 
   // onDelete CASCADE is on Photo side now
-  //deleting user will automatically delete the photo record
+  //deleting user will automatically delete the photo record // same for location
   async deleteUser(userId:string)
   {
-    const user = await this.UserRepo.findOne({userId}, {photo:true});
+    const user = await this.UserRepo.findOne({userId}, {photo:true,location:true});
     const photoPublicId = user.photo?.public_id;
     await this.UserRepo.remove(user);
     if(photoPublicId)
       await this.cloudinaryService.deleteFile(photoPublicId);
+  }
+
+  async updateUserLocation(userId:number , updateLocationDto: UpdateLocationDto)
+  {
+
+    return this.locationRepo.findOneAndUpdate({userId: userId}, updateLocationDto);
+
+  }
+
+  async handleSessionCreated(event: SessionCreatedEvent)
+  {
+    const users = await this.locationRepo.findNearestUsers(event.latitude,event.longitude);
+    if(!users)
+    {
+      this.logger.logInfo({
+        functionName: 'handleSessionCreated',
+        message: `No nearby users found for session created at latitude: ${event.latitude}, longitude: ${event.longitude}`,
+        additionalData: { latitude: event.latitude, longitude: event.longitude }
+      });
+      return;
+    }
+    const sendEvent = new SendSessionCreationToNearbyUsersEvent()
+    Object.assign(sendEvent, event)
+    sendEvent.nearbyUsers = users;
+    this.logger.logInfo({
+      functionName: 'handleSessionCreated',
+      message: `Emitting event to nearby users for session created at latitude: ${event.latitude}, longitude: ${event.longitude}`,
+      additionalData: { latitude: event.latitude, longitude: event.longitude, nearbyUsersCount: users.length }
+    });
+    console.log('sample email', users[0]);
+    this.kafkaClient.emit<SendSessionCreationToNearbyUsersEvent>(KAFKA_TOPICS.SEND_SESSIONS_CREATED_TO_NEAREST_USERS, sendEvent)
   }
 
 }

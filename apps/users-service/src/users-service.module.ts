@@ -18,6 +18,8 @@ import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guar
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
+import { LocationRepo } from './repos/location.repo';
+import { UserLocation } from './models/location.model';
 
 @Module({
   imports: [
@@ -27,7 +29,7 @@ import { memoryStorage } from 'multer';
     }),
     KafkaModule.register(),
     DatabaseModule,
-    DatabaseModule.forFeature([User,Follow,Photo]),
+    DatabaseModule.forFeature([User,Follow,Photo,UserLocation]),
     MulterModule.register({
       storage:memoryStorage()
     }),
@@ -52,7 +54,7 @@ import { memoryStorage } from 'multer';
     LoggerModule.forService('users-service'),
   ],
   controllers: [UserController],
-  providers: [UsersService ,FollowService,JwtStrategy,JwtAuthGuard,UserRepository,FollowRepository,PhotoRepository,MediumThrottleGuard,LongThrottleGuard,
+  providers: [UsersService ,FollowService,JwtStrategy,JwtAuthGuard,UserRepository,FollowRepository,PhotoRepository,LocationRepo,MediumThrottleGuard,LongThrottleGuard,
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestLoggerInterceptor,
