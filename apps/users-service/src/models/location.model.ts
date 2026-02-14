@@ -14,10 +14,10 @@ export class UserLocation extends AbstractEntity<UserLocation> {
 
 
     @PrimaryColumn()
-    userId: number;
+    userId: string;
 
     @OneToOne(() => User, (user) => user.location, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'userId', referencedColumnName: 'id' }) //email change be changed so i cannot reference it by email
+    @JoinColumn({ name: 'userId', referencedColumnName: 'userId' }) //email change be changed so i cannot reference it by email
     user: User;
     @Column({nullable:true})
     address: string;

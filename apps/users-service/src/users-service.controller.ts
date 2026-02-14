@@ -86,15 +86,27 @@ export class UserController {
   @Patch('location')
   async updateLocation(@CurrentUser() user:UserTokenPayload, @Body() updateLocationDto:UpdateLocationDto)
   {
-    const wantedUser = await this.usersService.getUserById(user.userId, ['location']);
-    return this.usersService.updateUserLocation(wantedUser.id, updateLocationDto);
+    return this.usersService.updateUserLocation(user.userId, updateLocationDto);
+  }
+
+  @UseGuards(JwtAuthGuard,EmailConfirmedGuard ,MediumThrottleGuard)
+  @Delete('location')
+  async deleteLocation(@CurrentUser() user:UserTokenPayload)
+  {
+    return this.usersService.deleteUserLocation(user.userId);
   }
 
 
-  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
-  async handleSessionCreated(@Payload() event: SessionCreatedEvent) 
+  // @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
+  // async handleSessionCreated(@Payload() event: SessionCreatedEvent) 
+  // {
+  //   return this.usersService.handleSessionCreated(event);
+  // }
+
+  @Post('event/test/session')
+  async handleSessionCreated(@Body() event: SessionCreatedEvent)
   {
+    console.log('Received event:', event);
     return this.usersService.handleSessionCreated(event);
   }
-
 }

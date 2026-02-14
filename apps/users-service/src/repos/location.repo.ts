@@ -17,8 +17,14 @@ export class LocationRepo extends AbstractRepository<UserLocation>
         const qb = this.entityRepository.createQueryBuilder('location');
         qb.innerJoin('location.user', 'user');
         qb.select('user.email', 'email');
-        qb.where(`ST_DWithin(location.point, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326), 10000)`, {latitude, longitude});
-        qb.orderBy(`ST_Distance(location.point, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326))`, 'ASC');
+        qb.where(
+            `ST_DWithin(location.point::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography, 10000)`,
+            { latitude, longitude }
+        );
+        qb.orderBy(
+            `ST_Distance(location.point::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography)`,
+            'ASC'
+        );
         qb.limit(30);
         const results = await qb.getRawMany<{ email: string }>();
         return results.map(r => r.email);

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Post, Res, UseInterceptors, UploadedFile, Delete, UseGuards, Param, BadRequestException, Patch } from '@nestjs/common';
+import { Body, Controller, Get, Post, Res, UseInterceptors, UploadedFile, Delete, UseGuards, Param, BadRequestException, Patch, Req } from '@nestjs/common';
 import { CurrentUser, EmailConfirmedGuard, JwtAuthGuard, type UserTokenPayload } from '@app/common';
 import { AuthServiceService } from './auth-service.service';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -120,7 +120,7 @@ export class AuthServiceController {
     }
   }
 
-  @UseGuards(JwtAuthGuard,EmailConfirmedGuard)
+  @UseGuards(JwtAuthGuard)
   @Delete('')
   async deleteAccount(@CurrentUser() user : UserTokenPayload)
    {

@@ -1,4 +1,4 @@
-import { Inject, Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Inject, Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { User } from '../models/user.model';
 import { AppLoggerService, CloudinaryService, PhotoMetadataDto, UserProfileDto } from '@app/common';
@@ -54,27 +54,30 @@ export class UsersService
     });
     user.photo = await this.PhotoRepo.create(photoEntity);
     
-    if(userDto.location)
-    {
-      const locationEntity = new UserLocation({
-        address: userDto.location.address,
-        createdAt: userDto.createdAt,
-        governorate: userDto.location.governorate,
-        point: {
-          type: "Point",
-          coordinates: [userDto.location.longitude, userDto.location.latitude]
-         }
-        })
-      user.location =await this.locationRepo.create(locationEntity);
-    }
-    
     this.logger.logInfo({
       functionName: 'createUser',
       message: `Creating user with email ${userDto.email}`,
       userId: user.userId,
       additionalData: { email: userDto.email }
     });
-    return this.UserRepo.create(user);
+    const createdUser = await this.UserRepo.create(user);
+
+    if (userDto.location)
+    {
+      const locationEntity = new UserLocation({
+        userId: createdUser.userId,
+        address: userDto.location.address,
+        createdAt: userDto.createdAt,
+        governorate: userDto.location.governorate,
+        point: {
+          type: "Point",
+          coordinates: [userDto.location.longitude, userDto.location.latitude]
+        }
+      });
+      await this.locationRepo.create(locationEntity);
+    }
+
+    return createdUser;
   }
 
   async getUserById(userId:string, exclude?: string[])
@@ -149,6 +152,11 @@ export class UsersService
   //deleting user will automatically delete the photo record // same for location
   async deleteUser(userId:string)
   {
+    this.logger.logInfo({
+      functionName: 'deleteUser',
+      message: `Deleting user with userId: ${userId}`,
+      userId: userId
+    });
     const user = await this.UserRepo.findOne({userId}, {photo:true,location:true});
     const photoPublicId = user.photo?.public_id;
     await this.UserRepo.remove(user);
@@ -156,11 +164,30 @@ export class UsersService
       await this.cloudinaryService.deleteFile(photoPublicId);
   }
 
-  async updateUserLocation(userId:number , updateLocationDto: UpdateLocationDto)
+  async updateUserLocation(userId:string , updateLocationDto: UpdateLocationDto)
   {
 
-    return this.locationRepo.findOneAndUpdate({userId: userId}, updateLocationDto);
+    let point: any = null;
+    if(updateLocationDto.latitude && updateLocationDto.longitude)
+    {
+      point = {
+        type: "Point",
+        coordinates: [updateLocationDto.longitude, updateLocationDto.latitude]
+      }
+      delete updateLocationDto.latitude;
+      delete updateLocationDto.longitude;
+    }
+    else if(updateLocationDto.latitude || updateLocationDto.longitude)
+      throw new BadRequestException('Both latitude and longitude must be provided');
+    const location = await this.locationRepo.findOne({userId}).catch(() => null);
+    if(location)
+      return this.locationRepo.findOneAndUpdate({userId}, {...updateLocationDto, point});
+    else return this.locationRepo.create(new UserLocation({...updateLocationDto, userId, point,createdAt: new Date()}));
+  }
 
+  async deleteUserLocation(userId:string)
+  {
+    await this.locationRepo.findOneAndDelete({userId});
   }
 
   async handleSessionCreated(event: SessionCreatedEvent)
