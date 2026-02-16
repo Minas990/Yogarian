@@ -101,6 +101,16 @@ services:
     networks:
       - yoga-network
 
+  redis:
+    image: redis:7.2-alpine
+    container_name: yoga-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - yoga-network
+
 
 networks:
   yoga-network:
@@ -113,3 +123,4 @@ volumes:
   postgres-auth-data:
   postgres-users-data:
   postgres-media-data:
+  redis-data:

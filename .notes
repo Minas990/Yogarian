@@ -13,9 +13,7 @@ even after deleting the jwt token from the request the user can got it and enter
 
 order in location is [lng, lat]
 
-we will add media service: for only uploading , removing pics no db at all 
-//user register flow api-gateway -> auth service (emitting event to user service) -> creating the user 
-//then another request to media service to update photo 
-//db for user service will be a nullable public_id contains the url of the image 
-//for the session will be another table (sessionId,public_url)
+we will add media service: for managing media in our app 
+
+delete uncofirmed email job are running every 2m
 

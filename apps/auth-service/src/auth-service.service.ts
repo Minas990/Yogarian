@@ -9,12 +9,11 @@ import { AuthUser } from './models/auth-user.model';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
-import { MoreThan } from 'typeorm';
+import { LessThan, MoreThan } from 'typeorm';
 
 @Injectable()
 export class AuthServiceService implements OnModuleInit
 {
-  private logger = new Logger(AuthServiceService.name);
   constructor(
     private readonly authUserRepository: AuthUserRepository,
     private readonly jwtService: JwtService,
@@ -236,6 +235,24 @@ export class AuthServiceService implements OnModuleInit
   {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email) && email.length <= 255;
+  }
+
+  async getUnconfirmedUsers(): Promise<AuthUser[]>
+  {
+    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    
+    const unconfirmedUsers = await this.authUserRepository.findWithOptions(
+      {
+        isEmailConfirmed: false,
+        createdAt: LessThan(twelveHoursAgo),
+      },
+      {
+        order: { createdAt: 'ASC' },
+        take: 500,
+      }
+    );
+    
+    return unconfirmedUsers;
   }
 
   private signToken(userId:string,email:string,userRole:Roles,isEmailConfirmed:boolean)

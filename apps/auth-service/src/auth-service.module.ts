@@ -9,11 +9,10 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthUserRepository } from './repo/user.repository';
 import { AuthUser } from './models/auth-user.model';
-import { MulterModule } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
 import { DatabaseErrorFilter } from './filters/database-error.filter';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.guard';
+import { CleanupProcessor } from './cleanup/cleanup.processor';
 
 @Module({
   imports: [
@@ -50,7 +49,7 @@ import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.
           },
         ],
       }),
-    })
+    }),
   ],
   controllers: [AuthServiceController],
   providers: [
@@ -59,6 +58,7 @@ import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.
     AuthUserRepository,
     ShortThrottleGuard,
     SensitiveThrottleGuard,
+    CleanupProcessor,
     {
       provide: APP_FILTER,
       useClass: DatabaseErrorFilter,

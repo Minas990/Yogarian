@@ -8,7 +8,7 @@ import { Column, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 
   ['passwordResetToken', 'passwordResetTokenExpiresAt'], 
   { where: `"passwordResetToken" IS NOT NULL` }
 )
-
+@Index('idx_auth_user_cleanup', ['isEmailConfirmed', 'createdAt'])
 export class AuthUser extends AbstractEntity<AuthUser>
 {
     @Column({unique:true})

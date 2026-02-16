@@ -5,8 +5,9 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { EventPattern } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { DeleteThrottleGuard, UploadThrottleGuard } from './guards/rate-limit.guard';
+import { HttpOnlyJwtAuthGuard } from './guards/http-only-jwt-auth.guard';
 
-@UseGuards(JwtAuthGuard,EmailConfirmedGuard)
+@UseGuards(HttpOnlyJwtAuthGuard)
 @Controller('media')
 export class MediaServiceController {
   constructor(private readonly mediaServiceService: MediaServiceService,private logger: AppLoggerService) 
@@ -51,9 +52,9 @@ export class MediaServiceController {
 
   }
 
+  @UseGuards(UploadThrottleGuard)
   @Patch('user')
   @UseInterceptors(FileInterceptor('file'))
-  @UseGuards(UploadThrottleGuard)
   async updateFile(@CurrentUser() user : UserTokenPayload, @UploadedFile() file: Express.Multer.File) 
   {
     if(!file)
