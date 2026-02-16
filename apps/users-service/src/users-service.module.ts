@@ -8,18 +8,13 @@ import { User } from './models/user.model';
 import { Follow } from './models/follow.model';
 import { JwtStrategy } from '@app/common/auth/strategies/jwt.strategy';
 import { JwtAuthGuard } from '@app/common/auth/guards/jwt-auth.guard';
-import { Photo } from './models/photo.model';
 import { UserRepository } from './repos/user.repostiroy';
 import { FollowRepository } from './repos/follow.repository';
-import { PhotoRepository } from './repos/photo.repository';
 import { FollowService } from './services/follow-serivice.service';
-import { CloudinaryModule, LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
+import {  LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { APP_INTERCEPTOR } from '@nestjs/core';
-import { MulterModule } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
-import { LocationRepo } from './repos/location.repo';
-import { UserLocation } from './models/location.model';
+
 
 @Module({
   imports: [
@@ -29,11 +24,7 @@ import { UserLocation } from './models/location.model';
     }),
     KafkaModule.register(),
     DatabaseModule,
-    DatabaseModule.forFeature([User,Follow,Photo,UserLocation]),
-    MulterModule.register({
-      storage:memoryStorage()
-    }),
-    CloudinaryModule,
+    DatabaseModule.forFeature([User,Follow]),
     RateLimiterModule.registerAsync({
       inject: [ConfigService],
       useFactory: (cs: ConfigService) => ({
@@ -54,7 +45,7 @@ import { UserLocation } from './models/location.model';
     LoggerModule.forService('users-service'),
   ],
   controllers: [UserController],
-  providers: [UsersService ,FollowService,JwtStrategy,JwtAuthGuard,UserRepository,FollowRepository,PhotoRepository,LocationRepo,MediumThrottleGuard,LongThrottleGuard,
+  providers: [UsersService ,FollowService,JwtStrategy,JwtAuthGuard,UserRepository,FollowRepository,MediumThrottleGuard,LongThrottleGuard,
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestLoggerInterceptor,

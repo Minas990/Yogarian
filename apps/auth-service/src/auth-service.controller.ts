@@ -11,14 +11,11 @@ export class AuthServiceController {
   constructor(private readonly authServiceService: AuthServiceService) {}
 
   
-  @UseInterceptors(FileInterceptor('file'))
   @Post('signup')
   @UseGuards(ShortThrottleGuard)
-  async signUp(@Body() user: CreateUserDto, @UploadedFile() file: Express.Multer.File)
+  async signUp(@Body() user: CreateUserDto)
   {
-    if(!file)
-      throw new BadRequestException('Profile photo is required');
-    return this.authServiceService.signUp(user,file);
+    return this.authServiceService.signUp(user);
   }
 
   @Post('login')

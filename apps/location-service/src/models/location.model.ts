@@ -1,6 +1,6 @@
 import { AbstractEntity } from "@app/database/database.entity";
 import { Column, Entity, Index, JoinColumn, OneToOne, PrimaryColumn } from "typeorm";
-import { User } from "./user.model";
+import { User } from "../../../users-service/src/models/user.model";
 
 
 export interface Geometry {

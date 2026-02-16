@@ -60,24 +60,11 @@ services:
     networks:
       - yoga-network
 
-  postgres-users:
-    image: postgis/postgis:15-3.4-alpine
-    container_name: yoga-postgres-users
-    ports:
-      - "5433:5432"
-    environment:
-      POSTGRES_USER: users
-      POSTGRES_PASSWORD: users
-      POSTGRES_DB: users
-    volumes:
-      - postgres-users-data:/var/lib/postgresql/data
-    networks:
-      - yoga-network
   postgres-auth:
     image: postgres:15.1-alpine
     container_name: yoga-postgres-auth
     ports:
-      - "5434:5432"
+      - "5433:5432"
     environment:
       POSTGRES_USER: auth
       POSTGRES_PASSWORD: auth
@@ -86,30 +73,31 @@ services:
       - postgres-auth-data:/var/lib/postgresql/data
     networks:
       - yoga-network
-  postgres-sessions:
+  postgres-users:
     image: postgres:15.1-alpine
-    container_name: yoga-postgres-sessions
+    container_name: yoga-postgres-users
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: users
+      POSTGRES_PASSWORD: users
+      POSTGRES_DB: users
+    volumes:
+      - postgres-users-data:/var/lib/postgresql/data
+    networks:
+      - yoga-network
+
+  postgres-media:
+    image: postgres:15.1-alpine
+    container_name: yoga-postgres-media
     ports:
       - "5435:5432"
     environment:
-      POSTGRES_USER: sessions
-      POSTGRES_PASSWORD: sessions
-      POSTGRES_DB: sessions
+      POSTGRES_USER: media
+      POSTGRES_PASSWORD: media
+      POSTGRES_DB: media
     volumes:
-      - postgres-sessions-data:/var/lib/postgresql/data
-    networks:
-      - yoga-network
-  postgres-sessions-slave:
-    image: postgres:15.1-alpine
-    container_name: yoga-postgres-sessions-slave
-    ports:
-      - "5436:5432"
-    environment:
-      POSTGRES_USER: sessions-slave
-      POSTGRES_PASSWORD: sessions-slave
-      POSTGRES_DB: sessions-slave
-    volumes:
-      - postgres-sessions-slave-data:/var/lib/postgresql/data
+      - postgres-media-data:/var/lib/postgresql/data
     networks:
       - yoga-network
 
@@ -122,7 +110,6 @@ volumes:
   zookeeper-data:
   zookeeper-logs:
   kafka-data:
-  postgres-users-data:
   postgres-auth-data:
-  postgres-sessions-data:
-  postgres-sessions-slave-data:
+  postgres-users-data:
+  postgres-media-data:

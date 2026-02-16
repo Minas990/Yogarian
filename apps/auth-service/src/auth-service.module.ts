@@ -25,10 +25,6 @@ import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.
     KafkaModule.register(),
     DatabaseModule,
     DatabaseModule.forFeature([AuthUser]),
-    MulterModule.register({
-      storage: memoryStorage()
-    }),
-    CloudinaryModule,
     PassportModule,
     JwtModule.registerAsync({
       inject:[ConfigService],

@@ -53,6 +53,24 @@
         "tsConfigPath": "libs/kafka/tsconfig.lib.json"
       }
     },
+    "location-service": {
+      "type": "application",
+      "root": "apps/location-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/location-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/location-service/tsconfig.app.json"
+      }
+    },
+    "media-service": {
+      "type": "application",
+      "root": "apps/media-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/media-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/media-service/tsconfig.app.json"
+      }
+    },
     "notifications-service": {
       "type": "application",
       "root": "apps/notifications-service",

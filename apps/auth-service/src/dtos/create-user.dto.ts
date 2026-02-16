@@ -1,6 +1,5 @@
-import { IsEmail, IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import {  IsNotEmpty, IsString } from 'class-validator';
 import { Roles, UserProfileDto } from '@app/common';
-import { UserLocationDto } from '@app/common/dtos/user-location.dto';
 import { OmitType } from '@nestjs/mapped-types';
 
 

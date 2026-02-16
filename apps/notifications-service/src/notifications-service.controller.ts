@@ -16,11 +16,11 @@ export class NotificationsServiceController {
   async sendWelcomeEmail(data: UserRegisteredEvent)
   {
     return this.emailService.sendEmailFromTemplate(
-      data.profile.email,
+      data.email,
       'Welcome to Our Service',
       'welcomeEmail',
-      { name: data.profile.name },
-      data.profile.userId
+      { name: data.name },
+      data.userId
     );
   }
 

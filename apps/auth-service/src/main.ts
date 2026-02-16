@@ -12,6 +12,6 @@ async function bootstrap() {
     whitelist: true,
     transform: true,
   }));
-  await app.listen(cs.get('AUTH_PORT') ?? 8002);
+  await app.listen(cs.get('AUTH_PORT') ?? 8001);
 }
 bootstrap();

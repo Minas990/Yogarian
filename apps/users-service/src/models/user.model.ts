@@ -1,9 +1,6 @@
-import { Column, CreateDateColumn, Entity, Index, JoinTable, ManyToMany, OneToMany, OneToOne, PrimaryGeneratedColumn, Unique } from "typeorm";
+import { Column, Entity, OneToMany, PrimaryGeneratedColumn } from "typeorm";
 import { Follow } from "./follow.model";
 import { AbstractEntity } from "@app/database/database.entity";
-import { Photo } from "./photo.model";
-import { UserLocation } from "./location.model";
-
 @Entity()
 export class User extends AbstractEntity<User>
 {
@@ -19,17 +16,11 @@ export class User extends AbstractEntity<User>
     followers: Follow[];
     @OneToMany(() => Follow, follow => follow.follower)
     following: Follow[];
-    
-    @OneToOne(() => Photo, photo => photo.user, {cascade:true,eager:true})
-    photo: Photo;
 
     //the userId is a uuid that will be used for authentication and as a reference in other services while the id from AbstractEntity is an auto-incremented integer used as the primary key in the database
     //that will be transered to user 
     @Column({ type: 'uuid', unique: true })
     userId: string; 
-
-    @OneToOne(() => UserLocation, location => location.user, {cascade:true,eager:false})
-    location: UserLocation;
 
     constructor(entity? : Partial<User>) {
         super();

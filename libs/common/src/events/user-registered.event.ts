@@ -1,6 +1,10 @@
-import { PhotoMetadataDto, UserProfileDto } from '../dtos';
+import {  UserProfileDto } from '../dtos';
 
-export class UserRegisteredEvent {
-  profile: UserProfileDto;
-  photo: PhotoMetadataDto;
+export class UserRegisteredEvent extends UserProfileDto
+{
+  constructor(partial: Partial<UserRegisteredEvent>) {
+    super();
+    Object.assign(this, partial);
+  }
 }
+

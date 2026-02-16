@@ -4,6 +4,11 @@ import { Column, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 
 
 
 @Entity()
+@Index('idx_auth_user_reset_token_valid', 
+  ['passwordResetToken', 'passwordResetTokenExpiresAt'], 
+  { where: `"passwordResetToken" IS NOT NULL` }
+)
+
 export class AuthUser extends AbstractEntity<AuthUser>
 {
     @Column({unique:true})
@@ -16,10 +21,10 @@ export class AuthUser extends AbstractEntity<AuthUser>
     isEmailConfirmed: boolean;
     @Column({nullable:true})
     passwordChangedAt: Date;
-    @Index()
-    @Column({nullable:true})    
+    
+    @Column({nullable:true,type:'varchar',length:64})    
     passwordResetToken: string;
-    @Column({nullable:true})
+    @Column({nullable:true,type:'timestamp'})
     passwordResetTokenExpiresAt: Date;
 
     @Column({nullable:true})

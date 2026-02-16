@@ -1,16 +1,14 @@
 import { AbstractEntity } from "@app/database/database.entity";
-import { Column, CreateDateColumn, Entity, JoinColumn, OneToOne, PrimaryGeneratedColumn } from "typeorm";
-import { User } from "./user.model";
+import { Column, Entity,  Index,  PrimaryGeneratedColumn } from "typeorm";
+import { OwnerType } from "../types/owners.types";
 
+@Index(["ownerType", "OwnerId"])
 @Entity()
 export class Photo extends AbstractEntity<Photo> {
 
     @PrimaryGeneratedColumn()
     id:number;
 
-    @OneToOne(() => User, user => user.photo, {onDelete:'CASCADE'})
-    @JoinColumn()
-    user: User;
     @Column()
     url: string;
 
@@ -23,6 +21,11 @@ export class Photo extends AbstractEntity<Photo> {
     @Column({ nullable: true })
     mimetype: string;
 
+    @Column({ type: 'enum', enum: OwnerType })
+    ownerType: OwnerType;
+
+    @Column({type:'uuid'})
+    OwnerId: string;
     
     constructor(entity?: Partial<Photo>) {
         super();
