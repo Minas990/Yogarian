@@ -12,7 +12,7 @@ export class AuthServiceController {
 
   
   @Post('signup')
-  @UseGuards(ShortThrottleGuard) 
+  // @UseGuards(ShortThrottleGuard) // DISABLED FOR TESTING
   async signUp(@Body() user: CreateUserDto)
   {
     return this.authServiceService.signUp(user);

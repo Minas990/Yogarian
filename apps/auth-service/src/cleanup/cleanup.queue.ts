@@ -19,11 +19,11 @@ export async function scheduleCleanupJob() {
         {},
         {
             repeat: {
-                every: 120000, 
+                every: 30000,//30 seconds for LOAD TESTING (change back to 120000 for production) 
             },
             removeOnComplete: true,
             removeOnFail: false,
         }
     );
-    console.log('scheduled unconfirmed user cleanup job to run every 2 minutes');
+    console.log('scheduled unconfirmed user cleanup job to run every 30 seconds (LOAD TESTING)');
 }

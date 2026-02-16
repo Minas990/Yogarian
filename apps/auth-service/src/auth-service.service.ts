@@ -239,12 +239,13 @@ export class AuthServiceService implements OnModuleInit
 
   async getUnconfirmedUsers(): Promise<AuthUser[]>
   {
-    const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
+    // TEMPORARILY DISABLED FOR LOAD TESTING - DELETE ALL UNCONFIRMED IMMEDIATELY
+    // const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
     
     const unconfirmedUsers = await this.authUserRepository.findWithOptions(
       {
         isEmailConfirmed: false,
-        createdAt: LessThan(twelveHoursAgo),
+        // createdAt: LessThan(twelveHoursAgo),// DISABLED FOR LOAD TESTING
       },
       {
         order: { createdAt: 'ASC' },
