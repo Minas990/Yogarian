@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthServiceController } from './auth-service.controller';
-import { AuthServiceService } from './auth-service.service';
+import { AuthService } from './auth-service.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { CloudinaryModule, JwtStrategy, RateLimiterModule, LoggerModule, RequestLoggerInterceptor } from '@app/common';
 import { DatabaseModule } from '@app/database';
@@ -13,6 +13,8 @@ import { DatabaseErrorFilter } from './filters/database-error.filter';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { SensitiveThrottleGuard, ShortThrottleGuard } from './guards/rate-limit.guard';
 import { CleanupProcessor } from './cleanup/cleanup.processor';
+import { BullModule } from '@nestjs/bullmq';
+import { QUEUE_CONSTANTS } from './constants/queue.constants';
 
 @Module({
   imports: [
@@ -50,10 +52,22 @@ import { CleanupProcessor } from './cleanup/cleanup.processor';
         ],
       }),
     }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (cs: ConfigService) => ({
+        connection:{
+          host: cs.getOrThrow('REDIS_HOST'),
+          port: Number(cs.getOrThrow('REDIS_PORT')),
+        }
+      })
+    }),
+    BullModule.registerQueue({
+      name: QUEUE_CONSTANTS.UNCONFIRMED_EMAIL_CLEANUP_QUEUE
+    })
   ],
   controllers: [AuthServiceController],
   providers: [
-    AuthServiceService,
+    AuthService,
     JwtStrategy,
     AuthUserRepository,
     ShortThrottleGuard,

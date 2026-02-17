@@ -10,16 +10,20 @@ import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
 import { ConfigService } from '@nestjs/config';
 import { LessThan, MoreThan } from 'typeorm';
+import { InjectQueue } from '@nestjs/bullmq';
+import { QUEUE_CONSTANTS } from './constants/queue.constants';
+import { Queue } from 'bullmq';
 
 @Injectable()
-export class AuthServiceService implements OnModuleInit
+export class AuthService implements OnModuleInit
 {
   constructor(
     private readonly authUserRepository: AuthUserRepository,
     private readonly jwtService: JwtService,
     @Inject(KAFKA_SERVICE) private readonly kafka: ClientKafka,
     private readonly configService: ConfigService,
-    private readonly appLogger: AppLoggerService
+    private readonly appLogger: AppLoggerService,
+    @InjectQueue(QUEUE_CONSTANTS.UNCONFIRMED_EMAIL_CLEANUP_QUEUE) private readonly cleanupQueue:Queue
   ) 
   {
 
@@ -27,6 +31,20 @@ export class AuthServiceService implements OnModuleInit
 
   async onModuleInit() {
     await this.kafka.connect();
+    const jobs = await this.cleanupQueue.getJobSchedulersCount();
+    if(jobs === 0)
+    {
+      await this.cleanupQueue.add('cleanup-unconfirmed-users', {}, {
+        repeat: {
+          every: this.configService.getOrThrow<number>('CLEANUP_CRON_SCHEDULE')
+        },
+        removeOnComplete:true
+      });
+      this.appLogger.logInfo({
+        functionName: 'onModuleInit',
+        message: 'Scheduled cleanup job for unconfirmed users',
+      });
+    }
   }
 
   async signUp(createUserDto: CreateUserDto)
@@ -239,13 +257,12 @@ export class AuthServiceService implements OnModuleInit
 
   async getUnconfirmedUsers(): Promise<AuthUser[]>
   {
-    // TEMPORARILY DISABLED FOR LOAD TESTING - DELETE ALL UNCONFIRMED IMMEDIATELY
-    // const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000);
-    
+    const allowedDate = this.configService.get<number>('UNCONFIRMED_USER_MAX_AGE') ?? 12 * 60 * 60 * 1000; //default to 12 hours
+    const twelveHoursAgo = new Date(Date.now() - allowedDate);
     const unconfirmedUsers = await this.authUserRepository.findWithOptions(
       {
         isEmailConfirmed: false,
-        // createdAt: LessThan(twelveHoursAgo),// DISABLED FOR LOAD TESTING
+        createdAt: LessThan(twelveHoursAgo),
       },
       {
         order: { createdAt: 'ASC' },
