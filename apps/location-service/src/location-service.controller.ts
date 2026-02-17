@@ -82,10 +82,15 @@ export class LocationServiceController {
 
   }
 
-  @EventPattern(KAFKA_TOPICS.SEESSION_UPDATED)
+  @EventPattern(KAFKA_TOPICS.SESSION_UPDATED)
   async handleSessionUpdated(data: any)
   {
 
   }
 
+  @Post('test')
+  async test(@Body() body: any)
+  {
+    return this.locationService.test(body);
+  }
 }

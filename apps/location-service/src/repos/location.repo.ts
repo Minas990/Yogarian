@@ -13,28 +13,45 @@ export class LocationRepo extends AbstractRepository<UserLocation>
         super(userLocationRepository, entityManager);
     }
 
-    async findNearestSessionsId(latitude: number, longitude: number, radius: number, page: number, limit: number)
-    {
-        const qb = this.entityRepository.createQueryBuilder('UserLocation');
-        qb.select([
-            '"UserLocation"."id"',
-            '"UserLocation"."ownerId"',
-            '"UserLocation"."ownerType"',
-            '"UserLocation"."address"',
-            '"UserLocation"."governorate"',
-            '"UserLocation"."createdAt"',
-            `ST_AsGeoJSON("UserLocation"."point")::jsonb as point`
-        ].join(', '));
-        qb.where(
-            `ST_DWithin("UserLocation"."point"::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography, :radius)`,
-            { latitude, longitude, radius }
-        ).andWhere('"UserLocation"."ownerType" = :ownerType', { ownerType: OwnerType.SESSION });
-        qb.orderBy(
-            `ST_Distance("UserLocation"."point"::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography)`,
-            'ASC'
-        );
-        qb.limit(limit).offset((page - 1) * limit);
-        const results = await qb.getRawMany<UserLocation>();
-        return results;
-    }
+async findNearestSessionsId(
+    latitude: number,
+    longitude: number,
+    radius: number,   //meters
+    page: number,
+    limit: number,
+) {
+    const qb = this.entityRepository.createQueryBuilder('ul');
+
+    const userPoint = `
+        ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+    `;
+    qb.select([
+        'ul.id',
+        'ul.ownerId',
+        'ul.ownerType',
+        'ul.address',
+        'ul.governorate',
+        'ul.createdAt',
+        `ST_AsGeoJSON(ul.point)::jsonb AS point`,
+        `ST_Distance(ul.point, ${userPoint}) AS distance`
+    ]);
+    qb.where(
+        `ST_DWithin(ul.point, ${userPoint}, :radius)`
+    );
+    qb.andWhere(
+        'ul.ownerType = :ownerType',
+        { ownerType: OwnerType.SESSION }
+    );
+    qb.setParameters({
+        latitude,
+        longitude,
+        radius
+    });
+    // knn index ordering
+    qb.orderBy(`ul.point <-> ${userPoint}`, 'ASC');
+    qb.limit(limit)
+      .offset((page - 1) * limit);
+    return qb.getRawMany();
+}
+
 }

@@ -65,7 +65,7 @@ export class LocationService implements OnModuleInit {
 
     async getNearestSessions(latitude: number, longitude: number, radius?: number, limit?: number,page?: number )
     {
-        return this.locationRepo.findNearestSessionsId(latitude, longitude, radius ?? 5000, page ?? 1, limit ?? 10);
+        return this.locationRepo.findNearestSessionsId(latitude, longitude, radius ?? 1000, page ?? 1, limit ?? 10);
     }
 
     async getSessionLocation(sessionId: string) {
@@ -89,6 +89,21 @@ export class LocationService implements OnModuleInit {
                 error: error.message
             });
         }
+    }
+
+    async test(body: any)
+    {
+        const location = new UserLocation({
+            ownerId: body.ownerId,
+            ownerType: body.ownerType,
+            address: body.address,
+            governorate: body.governorate,
+            point: {
+                type: 'Point',
+                coordinates: [body.longitude, body.latitude]
+            }
+        });
+        return this.locationRepo.create(location);
     }
 
 }

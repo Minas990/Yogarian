@@ -25,7 +25,7 @@ export class UserLocation extends AbstractEntity<UserLocation>
     @Column({nullable:true})
     governorate: string;
 
-    @Column("geometry", {
+    @Column("geography", {
         spatialFeatureType: "Point",
         srid: 4326,
         nullable: true,

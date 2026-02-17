@@ -9,7 +9,7 @@ export const KAFKA_TOPICS = {
     PASSWORD_RESET_TOKEN_SENT: 'password.reset.token.sent',
     SESSION_CREATED: 'session.created',
     SESSION_DELETED: 'session.deleted',
-    SEESSION_UPDATED: 'session.updated',
+    SESSION_UPDATED: 'session.updated',
     LOCATION_CREATION_FAILED: 'location.creation.failed',
     LOCATION_UPDATE_FAILED: 'location.update.failed',
 } as const;
