@@ -1,24 +1,24 @@
+import { OwnerType } from "@app/common/types/owners.types";
 import { AbstractEntity } from "@app/database/database.entity";
-import { Column, Entity, Index, JoinColumn, OneToOne, PrimaryColumn } from "typeorm";
-import { User } from "../../../users-service/src/models/user.model";
-
+import { Column, Entity, Index, JoinColumn, OneToOne, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
 
 export interface Geometry {
     type: "Point"
     coordinates: [number, number] // [longitude, latitude]
 }
 
+@Index(["ownerType", "ownerId"])
 
 @Entity()
-export class UserLocation extends AbstractEntity<UserLocation> {
+export class UserLocation extends AbstractEntity<UserLocation> 
+{
+    @PrimaryGeneratedColumn()
+    id:number;
+    @Column({type:'uuid'})
+    ownerId: string;
+    @Column({type:'enum',enum:OwnerType})
+    ownerType: OwnerType;
 
-
-    @PrimaryColumn()
-    userId: string;
-
-    @OneToOne(() => User, (user) => user.location, { onDelete: 'CASCADE' })
-    @JoinColumn({ name: 'userId', referencedColumnName: 'userId' }) //email change be changed so i cannot reference it by email
-    user: User;
     @Column({nullable:true})
     address: string;
 
@@ -32,7 +32,7 @@ export class UserLocation extends AbstractEntity<UserLocation> {
     })
     @Index({ spatial: true })
     point: Geometry //latitude and longitude , first is longitude then latitude: idk why i always get it wrong :)
-
+    
     constructor(entity?: Partial<UserLocation>) {
         super();
         Object.assign(this, entity);

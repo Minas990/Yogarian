@@ -3,7 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PhotoRepository } from './repos/photo.repository';
 import { Photo } from './models/photo.model';
-import { OwnerType } from './types/owners.types';
+import { OwnerType } from '../../../libs/common/src/types/owners.types';
 
 @Injectable()
 export class MediaServiceService {

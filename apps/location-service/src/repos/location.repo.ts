@@ -3,6 +3,7 @@ import { InjectRepository } from "@nestjs/typeorm";
 import { AbstractRepository } from "@app/database/database,repository";
 import { UserLocation } from "../models/location.model";
 import { Injectable } from "@nestjs/common";
+import { OwnerType } from "@app/common/types/owners.types";
 
 @Injectable()
 export class LocationRepo extends AbstractRepository<UserLocation>
@@ -12,21 +13,28 @@ export class LocationRepo extends AbstractRepository<UserLocation>
         super(userLocationRepository, entityManager);
     }
 
-    async findNearestUsers(latitude: number, longitude: number): Promise<string[]>
+    async findNearestSessionsId(latitude: number, longitude: number, radius: number, page: number, limit: number)
     {
-        const qb = this.entityRepository.createQueryBuilder('location');
-        qb.innerJoin('location.user', 'user');
-        qb.select('user.email', 'email');
+        const qb = this.entityRepository.createQueryBuilder('UserLocation');
+        qb.select([
+            '"UserLocation"."id"',
+            '"UserLocation"."ownerId"',
+            '"UserLocation"."ownerType"',
+            '"UserLocation"."address"',
+            '"UserLocation"."governorate"',
+            '"UserLocation"."createdAt"',
+            `ST_AsGeoJSON("UserLocation"."point")::jsonb as point`
+        ].join(', '));
         qb.where(
-            `ST_DWithin(location.point::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography, 10000)`,
-            { latitude, longitude }
-        );
+            `ST_DWithin("UserLocation"."point"::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography, :radius)`,
+            { latitude, longitude, radius }
+        ).andWhere('"UserLocation"."ownerType" = :ownerType', { ownerType: OwnerType.SESSION });
         qb.orderBy(
-            `ST_Distance(location.point::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography)`,
+            `ST_Distance("UserLocation"."point"::geography, ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography)`,
             'ASC'
         );
-        qb.limit(30);
-        const results = await qb.getRawMany<{ email: string }>();
-        return results.map(r => r.email);
+        qb.limit(limit).offset((page - 1) * limit);
+        const results = await qb.getRawMany<UserLocation>();
+        return results;
     }
 }

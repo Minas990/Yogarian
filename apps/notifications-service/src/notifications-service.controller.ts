@@ -47,9 +47,5 @@ export class NotificationsServiceController {
     );
   }
 
-  @EventPattern(KAFKA_TOPICS.SEND_SESSIONS_CREATED_TO_NEAREST_USERS)
-  async handleSessionCreated(data: SendSessionCreationToNearbyUsersEvent)
-  {
-    console.log(data);
-  }
+
 }

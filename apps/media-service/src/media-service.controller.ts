@@ -5,7 +5,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { EventPattern } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { DeleteThrottleGuard, UploadThrottleGuard } from './guards/rate-limit.guard';
-import { HttpOnlyJwtAuthGuard } from './guards/http-only-jwt-auth.guard';
+import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
 
 @UseGuards(HttpOnlyJwtAuthGuard)
 @Controller('media')

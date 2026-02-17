@@ -101,6 +101,19 @@ services:
     networks:
       - yoga-network
 
+  postgres-location:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: yoga-postgres-location
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_USER: location
+      POSTGRES_PASSWORD: location
+      POSTGRES_DB: location
+    volumes:
+      - postgres-location-data:/var/lib/postgresql/data
+    networks:
+      - yoga-network
   redis:
     image: redis:7.2-alpine
     container_name: yoga-redis
@@ -123,4 +136,5 @@ volumes:
   postgres-auth-data:
   postgres-users-data:
   postgres-media-data:
+  postgres-location-data:
   redis-data:

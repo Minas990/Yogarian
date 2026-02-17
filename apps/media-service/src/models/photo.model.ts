@@ -1,6 +1,6 @@
+import { OwnerType } from "@app/common/types/owners.types";
 import { AbstractEntity } from "@app/database/database.entity";
 import { Column, Entity,  Index,  PrimaryGeneratedColumn } from "typeorm";
-import { OwnerType } from "../types/owners.types";
 
 @Index(["ownerType", "OwnerId"])
 @Entity()

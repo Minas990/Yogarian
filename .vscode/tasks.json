@@ -58,13 +58,28 @@
       "problemMatcher": []
     },
     {
+      "label": "dev:location-service",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "start:dev", "location-service"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "group": "services",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "dev:all-services",
       "dependsOrder": "parallel",
       "dependsOn": [
         "dev:notifications-service",
         "dev:auth-service",
         "dev:users-service",
-        "dev:media-service"
+        "dev:media-service",
+        "dev:location-service"
       ],
       "problemMatcher": []
     },
