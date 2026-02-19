@@ -1,19 +1,10 @@
-import { IsLatitude, IsLongitude, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { LocationDto } from '@app/common/dtos/location.dto';
 
-export class CreateLocationDto {
-  @IsLatitude()
-  @IsNotEmpty()
-  latitude: number;
 
-  @IsNotEmpty()
-  @IsLongitude()
-  longitude: number;
-
-  @IsOptional()
-  @IsString()
-  address?: string;
-
-  @IsOptional()
-  @IsString()
-  governorate?: string;
+export class CreateLocationDto extends LocationDto 
+{
+  constructor(partial: Partial<CreateLocationDto>) {
+    super();
+    Object.assign(this, partial);
+  }
 }

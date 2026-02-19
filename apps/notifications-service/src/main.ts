@@ -27,6 +27,6 @@ async function bootstrap() {
     transform: true,
   }));
   await app.startAllMicroservices();
-  await app.listen(cs.get<number>('NOTIFICATIONS_PORT') ?? 8005);
+  await app.listen(cs.get<number>('NOTIFICATIONS_PORT') ?? 8007);
 }
 bootstrap();

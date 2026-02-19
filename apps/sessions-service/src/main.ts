@@ -15,7 +15,7 @@ async function bootstrap() {
       transport: Transport.KAFKA,
       options : {
         client: {
-          clientId: configService.get<string>('KAFKA_CLIENT_ID') || 'yoga-users',
+          clientId: configService.get<string>('KAFKA_CLIENT_ID') || 'yoga-sessions',
           brokers: configService.get<string>('KAFKA_BROKERS')?.split(',') || [KAFKA_BROKER]
         },
         consumer:{ 
@@ -29,6 +29,6 @@ async function bootstrap() {
     transform: true,
   }));
   await app.startAllMicroservices();
-  await app.listen(configService.get('SESSIONS_PORT') ?? 8003);
+  await app.listen(configService.get('SESSIONS_PORT') ?? 8005);
 }
 bootstrap();

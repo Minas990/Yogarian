@@ -3,7 +3,6 @@ import { EmailService } from './email/email.service';
 import { EventPattern } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { OtpSentEvent, PasswordResetTokenSentEvent, UserRegisteredEvent } from '@app/common';
-import { SendSessionCreationToNearbyUsersEvent } from '@app/common/events/send-session-creation-to-nearby-users.event';
 
 @Controller()
 export class NotificationsServiceController {

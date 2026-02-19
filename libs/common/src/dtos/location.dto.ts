@@ -1,8 +1,9 @@
+import { Type } from "class-transformer";
 import { IsLatitude, IsLongitude, IsNumber, IsOptional, IsString } from "class-validator";
 import { LatLongPair } from "./validators";
 
 
-export class UserLocationDto 
+export class LocationDto 
 {
     @IsString()
     @IsOptional()
@@ -12,9 +13,13 @@ export class UserLocationDto
     governorate: string;
     @IsOptional()
     @IsLatitude()
+    @IsNumber()
+    @Type(() => Number)
     @LatLongPair()
     latitude: number;
     @IsOptional()
     @IsLongitude()
+    @IsNumber()
+    @Type(() => Number)
     longitude: number;   
 }

@@ -72,6 +72,20 @@
       "problemMatcher": []
     },
     {
+      "label": "dev:sessions-service",
+      "type": "shell",
+      "command": "npm",
+      "args": ["run", "start:dev", "sessions-service"],
+      "isBackground": true,
+      "presentation": {
+        "reveal": "always",
+        "panel": "new",
+        "group": "services",
+        "clear": true
+      },
+      "problemMatcher": []
+    },
+    {
       "label": "dev:all-services",
       "dependsOrder": "parallel",
       "dependsOn": [
@@ -79,7 +93,8 @@
         "dev:auth-service",
         "dev:users-service",
         "dev:media-service",
-        "dev:location-service"
+        "dev:location-service",
+        "dev:sessions-service"
       ],
       "problemMatcher": []
     },
@@ -90,7 +105,7 @@
       "args": [
         "-NoProfile",
         "-Command",
-        "Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -match \"start:dev (notifications-service|auth-service|users-service|media-service)\" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
+        "Get-CimInstance Win32_Process -Filter \"Name = 'node.exe'\" | Where-Object { $_.CommandLine -match \"start:dev (notifications-service|auth-service|users-service|media-service|location-service|sessions-service)\" } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"
       ],
       "presentation": {
         "reveal": "always",

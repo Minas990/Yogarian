@@ -1,5 +1,5 @@
 import { Body, Controller, Get, Post, Res, UseInterceptors, UploadedFile, Delete, UseGuards, Param, BadRequestException, Patch, Req } from '@nestjs/common';
-import { CurrentUser, EmailConfirmedGuard, JwtAuthGuard, type UserTokenPayload } from '@app/common';
+import { CurrentUser, EmailConfirmedGuard, JwtAuthGuard, Roles, type UserTokenPayload } from '@app/common';
 import { AuthService } from './auth-service.service';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { type Response } from 'express';
@@ -15,6 +15,8 @@ export class AuthServiceController {
   @UseGuards(ShortThrottleGuard) 
   async signUp(@Body() user: CreateUserDto)
   {
+    if(user.role === Roles.ADMIN)
+      throw new BadRequestException('U r not qualified yet!!');
     return this.AuthService.signUp(user);
   }
 

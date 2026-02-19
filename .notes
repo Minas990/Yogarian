@@ -1,15 +1,19 @@
 auth service will use cloudinary to upload the photo ; has no other choice 
 cannot send binary values via kafka
 user service will delete the photo
+solved: make extra service -> media service
+
 
 we need to add throttler
 
-synchronization problem in created_at between all entities
+synchronization problem in created_at between all entities //solved
 
-postgis integration , subscriper for index -> scan the full table for the neareset x sessions is not worth it 
+postgis integration , subscriper for index -> scan the full table for the neareset x sessions is not worth it : solved
 
 critical bug found: 
 even after deleting the jwt token from the request the user can got it and enter the protected route because the jwt token is still valid and the user can use it until it expires
+solution: ill use redis for that to  check depricated tokens 
+
 
 order in location is [lng, lat]
 
@@ -17,3 +21,9 @@ we will add media service: for managing media in our app
 
 delete uncofirmed email job are running every 2m
 
+making new session: 
+    every  session must have a location , so this is the flow :
+        api-gateway send the request to session service , session created with status of location_pending and the response returned to user 
+        session service emit session_created event , location listen to to and make the entity then emit location created back to the session 
+        front-end either pooling or there will be a websocket : ill come to that later 
+        either the status will be failed or upcoming; 

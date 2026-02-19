@@ -1,13 +1,14 @@
-import { Injectable, BadRequestException, NotFoundException, Inject, OnModuleInit } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Inject, ForbiddenException, OnModuleInit } from '@nestjs/common';
 import { SessionsRepository } from '../repos/sessions.repo';
-import { CreateSessionDto } from '../dto/create-session.dto';
-import { UpdateSessionDto } from '../dto/update-session.dto';
-import { Session } from '../models/session.model';
-import { GetSessionsQuery } from '../types/get-sessions.type';
-import { PaginatedResponse } from '../types/paginated-response.type';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { AppLoggerService } from '@app/common';
+import { AppLoggerService, SessionCreatedLocationEvent } from '@app/common';
+import { CreateSessionDto } from '../dto/create-session.dto';
+import { UpdateSessionDto } from '../dto/update-session.dto';
+import { GetSessionQueryDto } from '../dto/get-session-query.dto';
+import { Session } from '../models/session.model';
+import { SessionStatus } from '../types/sessions-status.type';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class SessionsService implements OnModuleInit {
@@ -21,174 +22,212 @@ export class SessionsService implements OnModuleInit {
     await this.kafka.connect();
   }
 
-  async create(createSessionDto: CreateSessionDto, trainerId: string): Promise<Session> {
-    try {
-      const startTime = new Date(createSessionDto.startTime);
-      const endTime = new Date(createSessionDto.endTime);
+  async create(userId: string, createSessionDto: CreateSessionDto): Promise<Session> {
+    this.appLogger.logInfo({
+      functionName: 'create',
+      message: `Creating session for userId: ${userId}`,
+      userId: userId,
+    });
 
-      if (endTime <= startTime)
-        throw new BadRequestException('End time must be after start time');
-      if (startTime <= new Date() || endTime <= new Date())
-        throw new BadRequestException('Start and end time must be in the future');
+    const session = new Session({
+      ...createSessionDto,
+      trainerId: userId,
+      status: SessionStatus.PENDING,
+      currentParticipants: 0,
+    });
 
-      const session = new Session({
-        ...createSessionDto,
-        trainerId,
-        startTime,
-        endTime,
-        currentParticipants: 0,
-      });
+    const createdSession = await this.sessionsRepository.create(session);
 
-      const result = await this.sessionsRepository.create(session);
+    const locationEvent = new SessionCreatedLocationEvent(createSessionDto.location);
+    this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, {
+      ...locationEvent,
+      sessionId: createdSession.id,
+    });
 
-      this.appLogger.logInfo({
-        functionName: 'create',
-        message: `Session created: ${result.id} by trainer ${trainerId}`,
-        userId: trainerId,
-        additionalData: { sessionId: result.id, title: result.title },
-      });
+    this.appLogger.logInfo({
+      functionName: 'create',
+      message: `Session created with id: ${createdSession.id}`,
+      userId: userId,
+      additionalData: { sessionId: createdSession.id },
+    });
 
-      this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, {
-        sessionId: result.id,
-        trainerId,
-        title: result.title,
-        startTime: result.startTime,
-      });
+    return createdSession;
+  }
 
-      return result;
-    } catch (error) {
-      this.appLogger.logError({
-        functionName: 'create',
-        problem: 'Failed to create session',
-        error,
-        additionalData: { trainerId },
-      });
-      throw error;
+  async getSessions(query: GetSessionQueryDto): Promise<{ data: Session[]; total: number }> {
+    const page = query.page ?? 1;
+    const limit = query.limit ?? 10;
+    const skip = (page - 1) * limit;
+
+    return this.sessionsRepository.findSessionsWithFilters({
+      trainerId: query.trainerId,
+      minPrice: query.minPrice,
+      maxPrice: query.maxPrice,
+      minStartTime: query.minStartTime,
+      duration: query.duration,
+      skip,
+      take: limit,
+    });
+  }
+
+  async getSessionById(id: string): Promise<Session> {
+    return this.sessionsRepository.findOne({ id });
+  }
+
+  async updateSession(userId: string, id: string, updateSessionDto: UpdateSessionDto): Promise<Session> {
+    const session = await this.sessionsRepository.findOne({ id });
+    if (session.trainerId !== userId) {
+      throw new ForbiddenException('You are not authorized to update this session');
     }
-  }
 
-  async findById(id: string): Promise<Session> {
-    const session = await this.sessionsRepository.findOneOrNull({ id } as any);
-    if (!session)
-      throw new NotFoundException(`Session with id ${id} not found`);
-    return session;
-  }
+    this.appLogger.logInfo({
+      functionName: 'updateSession',
+      message: `Updating session with id: ${id}`,
+      userId: userId,
+    });
 
-  async findByTrainerId(trainerId: string, page: number = 1, limit: number = 10): Promise<PaginatedResponse<Session>> {
-    const { data, total } = await this.sessionsRepository.findPaginated({ trainerId } as any, page, limit);
+    const updateData: any = { ...updateSessionDto };
+    let location = updateData.location;
+    delete updateData.location;
+    updateData.status = SessionStatus.PENDING;
 
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-  }
+    const updatedSession = await this.sessionsRepository.findOneAndUpdate({ id }, updateData);
 
-  async findAll(query: GetSessionsQuery): Promise<PaginatedResponse<Session>> {
-    const { page = 1, limit = 10 } = query;
-    const { data, total } = await this.sessionsRepository.findAllFiltered(query);
-
-    return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
-    };
-  }
-
-  async update(id: string, updateSessionDto: UpdateSessionDto, trainerId: string): Promise<Session> {
-    try {
-      const session = await this.findById(id);
-
-      if (session.trainerId !== trainerId) {
-        throw new BadRequestException('You can only update your own sessions');
-      }
-
-      if (updateSessionDto.startTime || updateSessionDto.endTime) {
-        const startTime = updateSessionDto.startTime ? new Date(updateSessionDto.startTime) : session.startTime;
-        const endTime = updateSessionDto.endTime ? new Date(updateSessionDto.endTime) : session.endTime;
-
-        if (endTime <= startTime) {
-          throw new BadRequestException('End time must be after start time');
-        }
-      }
-
-      const updated = await this.sessionsRepository.findOneAndUpdate({ id } as any, updateSessionDto);
-
-      this.appLogger.logInfo({
-        functionName: 'update',
-        message: `Session updated: ${id} by trainer ${trainerId}`,
-        userId: trainerId,
-        additionalData: { sessionId: id },
+    if (location) {
+      const locationEvent = new SessionCreatedLocationEvent(location);
+      this.kafka.emit(KAFKA_TOPICS.SESSION_UPDATED, {
+        ...locationEvent,
+        sessionId: id,
       });
-
-      return updated;
-    } catch (error) {
-      this.appLogger.logError({
-        functionName: 'update',
-        problem: 'Failed to update session',
-        error,
-        additionalData: { sessionId: id, trainerId },
-      });
-      throw error;
     }
+
+    this.appLogger.logInfo({
+      functionName: 'updateSession',
+      message: `Session with id: ${id} updated successfully`,
+      userId: userId,
+    });
+
+    return updatedSession;
   }
 
-  async delete(id: string, trainerId: string): Promise<{ message: string }> {
-    try {
-      const session = await this.findById(id);
-
-      if (session.trainerId !== trainerId) {
-        throw new BadRequestException('You can only delete your own sessions');
-      }
-
-      await this.sessionsRepository.remove(session);
-
-      this.appLogger.logInfo({
-        functionName: 'delete',
-        message: `Session deleted: ${id} by trainer ${trainerId}`,
-        userId: trainerId,
-        additionalData: { sessionId: id },
-      });
-
-      this.kafka.emit(KAFKA_TOPICS.SESSION_DELETED, { sessionId: id, trainerId });
-
-      return { message: 'Session deleted successfully' };
-    } catch (error) {
-      this.appLogger.logError({
-        functionName: 'delete',
-        problem: 'Failed to delete session',
-        error,
-        additionalData: { sessionId: id, trainerId },
-      });
-      throw error;
+  async deleteSession(userId: string, id: string): Promise<{ message: string }> {
+    const session = await this.sessionsRepository.findOne({ id });
+    if (session.trainerId !== userId) {
+      throw new ForbiddenException('You are not authorized to delete this session');
     }
+
+    await this.sessionsRepository.findOneAndDelete({ id });
+
+    this.kafka.emit(KAFKA_TOPICS.SESSION_DELETED, {
+      sessionId: id,
+    });
+
+    this.appLogger.logInfo({
+      functionName: 'deleteSession',
+      message: `Session with id: ${id} deleted successfully`,
+      userId: userId,
+    });
+
+    return { message: 'Session deleted successfully' };
   }
 
-  async findNearestSessions(
-    latitude: number,
-    longitude: number,
-    radiusKm: number = 10,
-    page: number = 1,
-    limit: number = 10,
-  ): Promise<PaginatedResponse<Session & { distance: number }>> {
-    const { data, total } = await this.sessionsRepository.findNearestSessions(
-      latitude,
-      longitude,
-      radiusKm,
-      page,
-      limit,
+  async updateSessionSessionStatus(sessionId: string,status: SessionStatus)
+  {
+
+    try {          
+    await this.sessionsRepository.findOneAndUpdate({id: sessionId}, {status});
+    this.appLogger.logInfo({
+      functionName: 'updateSessionSessionStatus',
+      message: `Updated session with id: ${sessionId} to status: ${status}`,
+    });
+    } catch (err) {
+      this.appLogger.logError({
+        functionName: 'updateSessionSessionStatus',
+        problem: `Failed to update session status for sessionId: ${sessionId} to status: ${status}`,
+        error: err,
+      });
+    }
+
+  }
+
+  // replica testing method
+  async testReplicationFollowing() {
+    console.log('!!!!! REPLICATION TEST STARTING !!');
+
+    console.log('Step 1: Writing to MASTER (5437)...');
+    const testId = `replication-test-${Date.now()}`;
+    const testTrainerId = randomUUID();
+    const newSession = await this.sessionsRepository.create(
+      new Session({
+        title: testId,
+        description: 'Testing if slave follows master',
+        trainerId: testTrainerId,
+        maxParticipants: 10,
+        startTime: new Date(Date.now() + 3600000),
+        duration: 60,
+        price: 100,
+        status: SessionStatus.UPCOMING,
+      })
     );
+    console.log(`Written to MASTER - Session ID: ${newSession.id}`);
+    console.log(`Title: ${testId}\n`);
 
+    console.log('Step 2: Querying MASTER directly...');
+    const countInMaster = await this.queryDatabase(
+      `SELECT COUNT(*) as count FROM session WHERE title = '${testId}'`,
+      'postgresql://sessions:sessions@localhost:5437/sessions'
+    );
+    console.log(`Count in MASTER: ${countInMaster}\n`);
+
+    console.log('Step 3: Waiting 2 seconds for potential replication...');
+    await this.sleep(2000);
+    console.log('Step 4:Querying SLAVE directly...');
+    const countInSlave = await this.queryDatabase(
+      `SELECT COUNT(*) as count FROM session WHERE title = '${testId}'`,
+      'postgresql://sessions:sessions@localhost:5438/sessions'
+    );
+    console.log(`Count in SLAVE: ${countInSlave}\n`);
+
+    console.log('***********======********');
+    console.log('REPLICATION TEST RESULTS');
+    
+    console.log(`Master has data: ${countInMaster > 0 ? 'y' : 'n'}`);
+    console.log(`Slave has data:  ${countInSlave > 0 ? 'y' : 'n'}`);
+    
+    if (countInMaster > 0 && countInSlave > 0) {
+      console.log('\nREPLICATION IS WORKING! Slave is following master.\n');
+    } else if (countInMaster > 0 && countInSlave === 0) {
+      console.log('\n REPLICATION NOT WORKING! Slave is NOT following master.');
+      console.log(' PostgreSQL streaming replication is not configured.\n');
+    } else {
+      console.log('\nTEST FAILED! Data not found in master.\n');
+    }
     return {
-      data,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit),
+      testId,
+      sessionId: newSession.id,
+      masterHasData: countInMaster > 0,
+      slaveHasData: countInSlave > 0,
+      replicationWorking: countInMaster > 0 && countInSlave > 0,
     };
+  }
+
+  private async queryDatabase(query: string, connectionString: string): Promise<number> {
+    const { Client } = require('pg');
+    const client = new Client({ connectionString });
+    
+    try {
+      await client.connect();
+      const result = await client.query(query);
+      return parseInt(result.rows[0].count);
+    } catch (error) {
+      console.error(`Error querying database:`, error.message);
+      return 0;
+    } finally {
+      await client.end();
+    }
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
   }
 }

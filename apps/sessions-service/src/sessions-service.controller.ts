@@ -1,120 +1,84 @@
-import { EmailConfirmedGuard, JwtAuthGuard, Roles, RolesDecorator, CurrentUser } from '@app/common';
-import { IsAllowedGuard } from '@app/common/auth/guards/is-allowed.guard';
-import { KAFKA_TOPICS } from '@app/kafka';
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards, UseInterceptors } from '@nestjs/common';
-import { EventPattern } from '@nestjs/microservices';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { SessionsService } from './services/sessions.service';
-import { ReviewsService } from './services/reviews.service';
+import { CurrentUser, JwtAuthGuard,type UserTokenPayload } from '@app/common';
+import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
-import { CreateReviewDto } from './dto/create-review.dto';
-import { UpdateReviewDto } from './dto/update-review.dto';
-import { LocationDto } from './dto/location.dto';
-import { GetSessionsQuery } from './types/get-sessions.type';
-import { GetReviewsQuery } from './types/get-reviews.type';
-import { FilesInterceptor } from '@nestjs/platform-express';
+import { EventPattern } from '@nestjs/microservices';
+import { KAFKA_TOPICS } from '@app/kafka';
+import { SessionStatus } from './types/sessions-status.type';
+import { GetSessionQueryDto } from './dto/get-session-query.dto';
 
 @Controller('sessions')
 export class SessionsServiceController {
   constructor(
     private readonly sessionsService: SessionsService,
-    private readonly reviewsService: ReviewsService,
-  ) {}
+    ) {}
 
-  @Get()
-  async getQuery(@Query() query: GetSessionsQuery) {
-    return this.sessionsService.findAll(query);
-  }
+    @UseGuards(JwtAuthGuard,MediumThrottleGuard)
+    @Post()
+    async createSession(@CurrentUser() user : UserTokenPayload,@Body() createSessionDto:CreateSessionDto)
+    {
+      return this.sessionsService.create(user.userId,createSessionDto);
+    }
+  
+    @UseGuards(LongThrottleGuard)
+    @Get()
+    async getSessions(@Query() query : GetSessionQueryDto)
+    {
+      return this.sessionsService.getSessions(query);
+    }
 
-  @Get('nearest')
-  async getNearestSessions(@Query() locationDto: LocationDto) {
-    return this.sessionsService.findNearestSessions(
-      locationDto.latitude,
-      locationDto.longitude,
-      locationDto.radiusKm || 10,
-      locationDto.page || 1,
-      locationDto.limit || 10,
-    );
-  }
+    @UseGuards(LongThrottleGuard)
+    @Get(':id')
+    async getSessionById(@Param('id',ParseUUIDPipe) id: string)
+    {
+      return this.sessionsService.getSessionById(id);   
+    }
 
-  @Get('trainer/:userId')
-  async getSessionsByUserId(
-    @Param('userId', ParseUUIDPipe) userId: string,
-    @Query() query: GetSessionsQuery,
-  ) {
-    return this.sessionsService.findByTrainerId(userId, query.page, query.limit);
-  }
+    @UseGuards(JwtAuthGuard,MediumThrottleGuard)
+    @Patch(':id')
+    async updateSession(@CurrentUser() user : UserTokenPayload,@Param('id',ParseUUIDPipe) id: string,@Body() body:UpdateSessionDto)
+    {
+      return this.sessionsService.updateSession(user.userId,id,body);
+    }
 
-  @Get(':id')
-  async getSessionById(@Param('id', ParseUUIDPipe) id: string) {
-    return this.sessionsService.findById(id);
-  }
+    @UseGuards(JwtAuthGuard,MediumThrottleGuard)
+    @Delete(':id')
+    async deleteSession(@CurrentUser() user : UserTokenPayload,@Param('id',ParseUUIDPipe) id: string)
+    {
+      return this.sessionsService.deleteSession(user.userId,id);
+    }
 
-  @Get(':id/reviews')
-  async getReviews(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Query() query: GetReviewsQuery,
-  ) {
-    return this.reviewsService.findBySessionId(id, query);
-  }
+    @EventPattern(KAFKA_TOPICS.LOCATION_CREATED_SUCCESS)
+    async handleLocationCreated(data:{sessionId:string})
+    {
+      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.ONGOING);
+    }
 
-  @RolesDecorator(Roles.TRAINER)
-  @UseGuards(JwtAuthGuard, EmailConfirmedGuard, IsAllowedGuard)
-  @UseInterceptors(FilesInterceptor('images',3))
-  @Post()
-  async createSession(@Body() createSessionDto: CreateSessionDto, @CurrentUser() user: any,) {
-    return this.sessionsService.create(createSessionDto, user.userId);
-  }
+    @EventPattern(KAFKA_TOPICS.LOCATION_CREATION_FAILED)
+    async handleLocationDeleted(data:{sessionId:string})
+    {
+      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.FAILED);
+    }
 
-  @RolesDecorator(Roles.TRAINER)
-  @UseGuards(JwtAuthGuard, EmailConfirmedGuard, IsAllowedGuard)
-  @Patch(':id')
-  async updateSession(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() updateSessionDto: UpdateSessionDto,
-    @CurrentUser() user: any,
-  ) {
-    return this.sessionsService.update(id, updateSessionDto, user.userId);
-  }
+    @EventPattern(KAFKA_TOPICS.LOCATION_UPDATE_SUCCESS)
+    async handleLocationUpdated(data:{sessionId:string})
+    {
+      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.ONGOING);
+    }
 
-  @RolesDecorator(Roles.TRAINER, Roles.ADMIN)
-  @UseGuards(JwtAuthGuard, EmailConfirmedGuard, IsAllowedGuard)
-  @Delete(':id')
-  async deleteSession(@Param('id', ParseUUIDPipe) id: string, @CurrentUser() user: any) {
-    return this.sessionsService.delete(id, user.userId);
-  }
+    @EventPattern(KAFKA_TOPICS.LOCATION_UPDATE_FAILED)
+    async handleLocationUpdateFailed(data:{sessionId:string})
+    {
+      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.FAILED);
+    }
 
-  @RolesDecorator(Roles.USER)
-  @UseGuards(JwtAuthGuard, EmailConfirmedGuard, IsAllowedGuard)
-  @Post(':id/review')
-  async submitReview(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() reviewDto: CreateReviewDto,
-    @CurrentUser() user: any,
-  ) {
-    return this.reviewsService.create(id, reviewDto, user.userId);
-  }
-
-  @RolesDecorator(Roles.USER)
-  @UseGuards(JwtAuthGuard, EmailConfirmedGuard, IsAllowedGuard)
-  @Delete(':id/review/:reviewId')
-  async deleteReview(@Param('reviewId', ParseUUIDPipe) reviewId: string, @CurrentUser() user: any) {
-    return this.reviewsService.delete(reviewId, user.userId);
-  }
-
-  @RolesDecorator(Roles.USER)
-  @UseGuards(JwtAuthGuard, EmailConfirmedGuard, IsAllowedGuard)
-  @Patch(':id/review/:reviewId')
-  async updateReview(
-    @Param('reviewId', ParseUUIDPipe) reviewId: string,
-    @Body() reviewDto: UpdateReviewDto,
-    @CurrentUser() user: any,
-  ) {
-    return this.reviewsService.update(reviewId, reviewDto, user.userId);
-  }
-
-  @EventPattern(KAFKA_TOPICS.USER_DELETED)
-  async handleUserDeletedEvent(payload: any) {
-    console.log(`User deleted event received for userId: ${payload.userId}`);
-  }
+    //endpoint to verify database replication
+    @Get('test/replication')
+    async testReplication()
+    {
+      return this.sessionsService.testReplicationFollowing();
+    }
+  
 }
