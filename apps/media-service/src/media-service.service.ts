@@ -120,12 +120,9 @@ export class MediaServiceService implements OnModuleInit {
     {
         const photo = await this.photoRepo.findOne({ownerType:OwnerType.USER,OwnerId:userId});
         if(!photo)
-            return {message:'No file found for the user'};
-        if(photo)
-        {
-            await this.cloudinaryService.deleteFile(photo.public_id);
-            await this.photoRepo.remove(photo);
-        }
+            return {message:'No file found for the user'};        
+        await this.cloudinaryService.deleteFile(photo.public_id);
+        await this.photoRepo.remove(photo);
         return {message:'File deleted successfully'};
     }
 
@@ -187,6 +184,7 @@ export class MediaServiceService implements OnModuleInit {
             throw new BadRequestException('A session can have a maximum of 3 photos');
 
         const uploadResults: any[] = [];
+        const errors: any[] = [];
         const folder = this.configService.getOrThrow<string>('CLOUDINARY_SESSION_PHOTO_FOLDER');
         for(const file of files)
         {
@@ -205,19 +203,21 @@ export class MediaServiceService implements OnModuleInit {
                     problem: 'Failed to upload session file',
                     error: error.message
                 });
+                errors.push(error.message);
             }
         }
 
-        this.kafkaClient.emit(
-            KAFKA_TOPICS.IMAGES_SESSION_CREATED,
-            new ImagesSessionCreatedEvent({
-                userId,
-                sessionId,
-                photoIds: uploadResults.map((result) => result.id)
-            })
-        );
+        if(uploadResults.length)
+            this.kafkaClient.emit(
+                KAFKA_TOPICS.IMAGES_SESSION_CREATED,
+                new ImagesSessionCreatedEvent({
+                    userId,
+                    sessionId,
+                    photoIds: uploadResults.map((result) => result.id)
+                })
+            );
 
-        return uploadResults;
+        return { uploadedCount: uploadResults.length, errors };
     }
 
     async getSessionFiles(sessionId: string)
@@ -225,17 +225,22 @@ export class MediaServiceService implements OnModuleInit {
         return this.photoRepo.find({ownerType:OwnerType.SESSION,OwnerId:sessionId,status:PhotoStatus.APPROVED});
     }
 
-    async deleteSessionFile(userId: string,sessionId: string,photoId: number)
+    async deleteSessionFile(userId: string,sessionId: string,photoIds: number[])
     {
-        const photo = await this.photoRepo.findOne({id:photoId});
-        if(!photo || photo.ownerType !== OwnerType.SESSION || photo.OwnerId !== sessionId || photo.status !== PhotoStatus.APPROVED)
-            throw new BadRequestException('Photo not found or cannot be deleted');
+        const photos = await this.photoRepo.find({id:In(photoIds)});
+        if(photos.length === 0)
+            throw new BadRequestException('No photos found to delete');
+        for(const photo of photos)
+        {
+            if(photo.ownerType !== OwnerType.SESSION || photo.OwnerId !== sessionId || photo.status !== PhotoStatus.APPROVED)
+                throw new BadRequestException('Photo not found or cannot be deleted');
+        }
         this.kafkaClient.emit(
             KAFKA_TOPICS.IMAGES_SESSION_DELETED,
             new ImagesSessionDeletedEvent({
                 userId,
                 sessionId,
-                photoId
+                photoIds
             })
         );
         return {message:'Photo deletion request sent successfully'};

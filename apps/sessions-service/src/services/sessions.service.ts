@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, Inject, ForbiddenEx
 import { SessionsRepository } from '../repos/sessions.repo';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { AppLoggerService, SessionCreatedEvent, SessionCreatedLocationEvent, SessionDeletedEvent, SessionUpdatedEvent } from '@app/common';
+import { AppLoggerService, SessionCreatedEvent, SessionCreatedLocationEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, SessionUpdatedEvent } from '@app/common';
 import { CreateSessionDto } from '../dto/create-session.dto';
 import { UpdateSessionDto } from '../dto/update-session.dto';
 import { GetSessionQueryDto } from '../dto/get-session-query.dto';
@@ -78,7 +78,7 @@ export class SessionsService implements OnModuleInit {
   }
 
   async updateSession(userId: string, id: string, updateSessionDto: UpdateSessionDto): Promise<Session> {
-    const session = await this.sessionsRepository.findOne({ id });
+    const session = await this.sessionsRepository.findOne({ id,status: SessionStatus.UPCOMING });
     if (session.trainerId !== userId) {
       throw new ForbiddenException('You are not authorized to update this session');
     }
@@ -92,8 +92,8 @@ export class SessionsService implements OnModuleInit {
     const updateData: any = { ...updateSessionDto };
     let location = updateData.location;
     delete updateData.location;
-    updateData.status = SessionStatus.PENDING;
-
+    if(location)
+      updateData.status = SessionStatus.PENDING;
     const updatedSession = await this.sessionsRepository.findOneAndUpdate({ id }, updateData);
 
     if (location) {
@@ -164,24 +164,35 @@ export class SessionsService implements OnModuleInit {
       userId,
     });
 
-    try {
       const sessions = await this.sessionsRepository.find({ trainerId: userId });
       
       for (const session of sessions) {
-        await this.sessionsRepository.findOneAndDelete({ id: session.id });
-        
-        this.kafka.emit(
-          KAFKA_TOPICS.SESSION_DELETED,
-          new SessionDeletedEvent({ sessionId: session.id })
-        );
-        
-        this.appLogger.logInfo({
-          functionName: 'handleUserDeleted',
-          message: `Deleted session ${session.id} for trainer ${userId}`,
-          userId,
-          additionalData: { sessionId: session.id },
-        });
-      }
+        try 
+        {
+          await this.sessionsRepository.findOneAndDelete({ id: session.id });
+          
+          this.kafka.emit(
+            KAFKA_TOPICS.SESSION_DELETED,
+            new SessionDeletedEvent({ sessionId: session.id })
+          );
+          
+          this.appLogger.logInfo({
+            functionName: 'handleUserDeleted',
+            message: `Deleted session ${session.id} for trainer ${userId}`,
+            userId,
+            additionalData: { sessionId: session.id },
+          });
+        }
+        catch (error)        {
+          this.appLogger.logError({
+            functionName: 'handleUserDeleted',
+            problem: `Failed to delete session ${session.id} for trainer ${userId}`,
+            userId,
+            additionalData: { sessionId: session.id },
+            error: error.message,
+          });
+        }
+      
 
       this.appLogger.logInfo({
         functionName: 'handleUserDeleted',
@@ -189,13 +200,60 @@ export class SessionsService implements OnModuleInit {
         userId,
         additionalData: { deletedCount: sessions.length },
       });
-    } catch (error) {
+    } 
+  }
+
+  async handleImagesCreated(userId:string,sessionId:string,photoIds:number[])
+  {
+    try
+    {
+      const session = await this.sessionsRepository.findOne({id:sessionId,trainerId:userId,status: SessionStatus.UPCOMING});
+      if(!session) 
+        throw new NotFoundException('Session not found or you are not the trainer of this session');
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_CREATION_APPROVED,new SessionImagesCreationApprovedEvent({sessionId,photoIds}));
+      this.appLogger.logInfo({
+        functionName: 'handleImagesCreated',
+        message: `Approved images creation for session ${sessionId} by user ${userId}`,
+        userId,
+        additionalData: { sessionId, photoIds },
+      });
+    } 
+    catch(error)
+    {
       this.appLogger.logError({
-        functionName: 'handleUserDeleted',
-        problem: `Failed to delete sessions for trainer ${userId}`,
+        functionName: 'handleImagesCreated',
+        problem: `Failed to handle images created for session ${sessionId} by user ${userId}`,
         userId,
         error: error.message,
       });
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_CREATION_REJECTED,new SessionImagesCreationRejectedEvent({sessionId,photoIds}));
+    }
+  } 
+
+  async handleSessionImagesDeleted(userId:string,sessionId:string,photoIds:number[])
+  {
+    try
+    {
+      const session = await this.sessionsRepository.findOne({id:sessionId,trainerId:userId});
+      if(!session) 
+        throw new NotFoundException('Session not found or you are not the trainer of this session');
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_DELETION_APPROVED,new SessionImagesDeletionApprovedEvent({sessionId,photoIds}));
+      this.appLogger.logInfo({
+        functionName: 'handleSessionImagesDeleted',
+        message: `Approved image deletion for session ${sessionId} by user ${userId}`,
+        userId,
+        additionalData: { sessionId, photoIds },
+      });
+    }
+    catch(error)
+    {
+      this.appLogger.logError({
+        functionName: 'handleSessionImagesDeleted',
+        problem: `Failed to handle image deletion for session ${sessionId} by user ${userId}`,
+        userId,
+        error: error.message,
+      });
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_DELETION_REJECTED,new SessionImagesDeletionRejectedEvent({sessionId,photoIds}));
     }
   }
 

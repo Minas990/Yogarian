@@ -1,4 +1,4 @@
-import { BadRequestException, Controller, Delete, Get, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Param, ParseArrayPipe, ParseIntPipe, ParseUUIDPipe, Patch, Post, Query, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { MediaServiceService } from './media-service.service';
 import { AppLoggerService, CurrentUser, EmailConfirmedGuard, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, UserDeletedEvent, type UserTokenPayload } from '@app/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
@@ -68,18 +68,18 @@ export class MediaServiceController {
       userId:event.userId
     });
 
-    await this.mediaServiceService.deleteUserFile(event.userId).catch((err)=>{
+    await this.mediaServiceService.deleteUserFile(event.userId).then(()=>{
+      this.logger.logInfo({
+        message:'User files deleted successfully after receiving user deleted event',
+        functionName:'handleUserDeletedEvent',
+        userId:event.userId
+      });
+    }).catch((err)=>{
       this.logger.logError({
         functionName:'handleUserDeletedEvent',
         userId:event.userId,
         error:err.message,
         problem:'Failed to delete user files after receiving user deleted event'
-      });
-    }).then(()=>{
-      this.logger.logInfo({
-        message:'User files deleted successfully after receiving user deleted event',
-        functionName:'handleUserDeletedEvent',
-        userId:event.userId
       });
     });
   }
@@ -98,10 +98,15 @@ export class MediaServiceController {
     return this.mediaServiceService.getSessionFiles(sessionId);
   }
   
-  @Delete('sessions/:sessionId/:photoId')
-  async deleteSessionFile(@CurrentUser() user : UserTokenPayload,@Param('sessionId', ParseUUIDPipe) sessionId: string,@Param('photoId', ParseIntPipe) photoId: number)
+  @Delete('sessions/:sessionId/photos')
+  async deleteSessionFile(
+    @CurrentUser() user : UserTokenPayload,
+    @Param('sessionId', ParseUUIDPipe) sessionId: string,
+    @Query('photoIds',ParseArrayPipe) photoIds: number[])
   {
-    return this.mediaServiceService.deleteSessionFile(user.userId,sessionId,photoId);
+    if(!photoIds || photoIds.length === 0 || photoIds.length > 3)
+      throw new BadRequestException('Invalid photoIds length');
+    return this.mediaServiceService.deleteSessionFile(user.userId,sessionId,photoIds);
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_IMAGES_CREATION_APPROVED)
@@ -229,7 +234,15 @@ export class MediaServiceController {
       }
     });
 
-    await this.mediaServiceService.deleteSessionImagesBySessionId(event.sessionId).catch((err) => {
+    await this.mediaServiceService.deleteSessionImagesBySessionId(event.sessionId).then(() => {
+      this.logger.logInfo({
+        message: 'Session images deleted successfully after receiving session deleted event',
+        functionName: 'handleSessionDeletedEvent',
+        additionalData: {
+          sessionId: event.sessionId
+        }
+      });
+    }).catch((err) => {
       this.logger.logError({
         functionName: 'handleSessionDeletedEvent',
         error: err.message,
@@ -237,14 +250,6 @@ export class MediaServiceController {
           sessionId: event.sessionId
         },
         problem: 'Failed to delete session images after receiving session deleted event'
-      });
-    }).then(() => {
-      this.logger.logInfo({
-        message: 'Session images deleted successfully after receiving session deleted event',
-        functionName: 'handleSessionDeletedEvent',
-        additionalData: {
-          sessionId: event.sessionId
-        }
       });
     });
   }

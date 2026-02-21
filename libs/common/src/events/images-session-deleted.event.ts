@@ -5,5 +5,5 @@ export class ImagesSessionDeletedEvent {
 
   userId: string;
   sessionId: string;
-  photoId: number;
+  photoIds: number[];
 }

@@ -42,7 +42,7 @@ export class LocationService implements OnModuleInit {
     async updateLocation(userId: string, dto: UpdateLocationDto){
         const location = await this.getUserLocation(userId);
         let point:Geometry | undefined = undefined;
-        if(dto.latitude && dto.longitude)
+        if(dto.latitude && dto.longitude)//[0,0] is not valid for my case
             point = {
                 type: 'Point',
                 coordinates: [dto.longitude, dto.latitude]
