@@ -1,11 +1,12 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Patch, Post, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { BadRequestException, Controller, Delete, Get, Param, ParseIntPipe, ParseUUIDPipe, Patch, Post, UploadedFile, UploadedFiles, UseGuards, UseInterceptors } from '@nestjs/common';
 import { MediaServiceService } from './media-service.service';
-import { AppLoggerService, CurrentUser, EmailConfirmedGuard, JwtAuthGuard,UserDeletedEvent,type UserTokenPayload } from '@app/common';
+import { AppLoggerService, CurrentUser, EmailConfirmedGuard, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, UserDeletedEvent, type UserTokenPayload } from '@app/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { EventPattern } from '@nestjs/microservices';
+import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { DeleteThrottleGuard, UploadThrottleGuard } from './guards/rate-limit.guard';
 import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
+import { PhotoStatus } from './types/photo-status.type';
 
 @UseGuards(HttpOnlyJwtAuthGuard)
 @Controller('media')
@@ -38,18 +39,7 @@ export class MediaServiceController {
   {
     if(!file)
       throw new BadRequestException('File is required');
-    try
-    {
-      await this.mediaServiceService.getUserFile(user.userId);
-      return {
-        message:'File already exists for the user, use update endpoint to update the file'
-      }
-    }
-    catch(err)
-    {
-      return this.mediaServiceService.uploadUserFile(user.userId,file);
-    }
-
+    return this.mediaServiceService.uploadUserFile(user.userId,file);
   }
 
   @UseGuards(UploadThrottleGuard)
@@ -63,14 +53,14 @@ export class MediaServiceController {
   }
 
   @UseGuards(DeleteThrottleGuard)
-  @Delete('user')//for all sessions and user files
+  @Delete('user')
   async deleteFile(@CurrentUser() user : UserTokenPayload) 
   {
     return this.mediaServiceService.deleteUserFile(user.userId);
   }
 
   @EventPattern(KAFKA_TOPICS.USER_DELETED)
-  async handleUserDeletedEvent(event: UserDeletedEvent)
+  async handleUserDeletedEvent(@Payload() event: UserDeletedEvent)
   {
     this.logger.logInfo({
       message:'Received user deleted event',
@@ -94,17 +84,168 @@ export class MediaServiceController {
     });
   }
   
-  @UseInterceptors(FilesInterceptor('files'))
-  @Post('sessions')
-  async uploadSessionFiles(@CurrentUser() user : UserTokenPayload,files: Express.Multer.File[]) : Promise<string>
+  @UseInterceptors(FilesInterceptor('files',3))
+  @UseGuards(UploadThrottleGuard,EmailConfirmedGuard)
+  @Post('sessions/:sessionId')
+  async uploadSessionFiles(@Param('sessionId', ParseUUIDPipe) sessionId: string,@CurrentUser() user : UserTokenPayload,@UploadedFiles() files: Express.Multer.File[]) 
   {
-    return 'Session files uploaded successfully';
+    return this.mediaServiceService.uploadSessionFile(user.userId,sessionId,files);
+  }
+
+  @Get('sessions/:sessionId')
+  async getSessionFiles(@Param('sessionId', ParseUUIDPipe) sessionId: string) 
+  {
+    return this.mediaServiceService.getSessionFiles(sessionId);
+  }
+  
+  @Delete('sessions/:sessionId/:photoId')
+  async deleteSessionFile(@CurrentUser() user : UserTokenPayload,@Param('sessionId', ParseUUIDPipe) sessionId: string,@Param('photoId', ParseIntPipe) photoId: number)
+  {
+    return this.mediaServiceService.deleteSessionFile(user.userId,sessionId,photoId);
+  }
+
+  @EventPattern(KAFKA_TOPICS.SESSION_IMAGES_CREATION_APPROVED)
+  async handleSessionImageApprovedEvent(@Payload() event: SessionImagesCreationApprovedEvent)
+  {
+    this.logger.logInfo({
+      message:'Received session image approved event',
+      functionName:'handleSessionImageApprovedEvent',
+      additionalData: {
+        sessionId: event.sessionId,
+        photoIds: event.photoIds
+      }
+    });
+    return this.mediaServiceService.updateStatus(event.photoIds,PhotoStatus.APPROVED).then(()=>{
+      this.logger.logInfo({
+        message:'Session image status updated to approved successfully after receiving session image approved event',
+        functionName:'handleSessionImageApprovedEvent',
+        additionalData: {
+          sessionId: event.sessionId,
+          photoIds: event.photoIds
+        }
+      });
+    }).catch((err)=>{
+      this.logger.logError({
+        functionName:'handleSessionImageApprovedEvent',
+        error: err.message,
+        additionalData: {
+          sessionId: event.sessionId,
+          photoIds: event.photoIds
+        },
+        problem:'Failed to update session image status to approved after receiving session image approved event'
+      });
+    });  
+  }
+  
+  @EventPattern(KAFKA_TOPICS.SESSION_IMAGES_CREATION_REJECTED)
+  async handleSessionImageRejectedEvent(@Payload() event: SessionImagesCreationRejectedEvent)
+  {
+    this.logger.logInfo({
+      message:'Received session image rejected event',
+      functionName:'handleSessionImageRejectedEvent',
+      additionalData: {
+        sessionId: event.sessionId,
+        photoIds: event.photoIds
+      }
+    });
+    return this.mediaServiceService.deleteSessionImages(event.sessionId,event.photoIds,PhotoStatus.PENDING).then(()=>{
+      this.logger.logInfo({
+        message:'Session pending images deleted successfully after receiving session image rejected event',
+        functionName:'handleSessionImageRejectedEvent',
+        additionalData: {
+          sessionId: event.sessionId,
+          photoIds: event.photoIds
+        }
+      });
+    }).catch((err)=>{
+      this.logger.logError({
+        functionName:'handleSessionImageRejectedEvent',
+        error: err.message,
+        additionalData: {
+          sessionId: event.sessionId,
+          photoIds: event.photoIds
+        },
+        problem:'Failed to delete pending session images after receiving session image rejected event'
+      });
+    });  
+  }
+
+  @EventPattern(KAFKA_TOPICS.SESSION_IMAGES_DELETION_APPROVED)
+  async handleSessionImageDeletionApprovedEvent(@Payload() event: SessionImagesDeletionApprovedEvent)
+  {
+    this.logger.logInfo({
+      message:'Received session image deletion approved event',
+      functionName:'handleSessionImageDeletionApprovedEvent',
+      additionalData: {
+        sessionId: event.sessionId,
+        photoIds: event.photoIds
+      }
+    });
+    return this.mediaServiceService.deleteSessionImages(event.sessionId,event.photoIds).then(()=>{
+      this.logger.logInfo({
+        message:'Session images deleted successfully after receiving session image deletion approved event',
+        functionName:'handleSessionImageDeletionApprovedEvent',
+        additionalData: {
+          sessionId: event.sessionId,
+          photoIds: event.photoIds
+        }
+      });
+    }).catch((err)=>{
+      this.logger.logError({
+        functionName:'handleSessionImageDeletionApprovedEvent',
+        error: err.message,
+        additionalData: {
+          sessionId: event.sessionId,
+          photoIds: event.photoIds
+        },
+        problem:'Failed to delete session images after receiving session image deletion approved event'
+      });
+    });  
+  }
+
+  @EventPattern(KAFKA_TOPICS.SESSION_IMAGES_DELETION_REJECTED)
+  async handleSessionImageDeletionRejectedEvent(@Payload() event: SessionImagesDeletionRejectedEvent)
+  {
+    //do nothing simply! the deletion request will be ignored and the photo will remain as is, we can log this event for monitoring purposes
+    this.logger.logInfo({
+      message:'Received session image deletion rejected event',
+      functionName:'handleSessionImageDeletionRejectedEvent',
+      additionalData: {
+        sessionId: event.sessionId,
+        photoIds: event.photoIds,
+        userId: event.userId // the bad guy 
+      }
+    });
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_DELETED)
-  async handleSessionDeletedEvent(events: any)
+  async handleSessionDeletedEvent(@Payload() event: SessionDeletedEvent)
   {
-    return 'Session files deleted successfully';
-  }
+    this.logger.logInfo({
+      message: 'Received session deleted event',
+      functionName: 'handleSessionDeletedEvent',
+      additionalData: {
+        sessionId: event.sessionId
+      }
+    });
 
+    await this.mediaServiceService.deleteSessionImagesBySessionId(event.sessionId).catch((err) => {
+      this.logger.logError({
+        functionName: 'handleSessionDeletedEvent',
+        error: err.message,
+        additionalData: {
+          sessionId: event.sessionId
+        },
+        problem: 'Failed to delete session images after receiving session deleted event'
+      });
+    }).then(() => {
+      this.logger.logInfo({
+        message: 'Session images deleted successfully after receiving session deleted event',
+        functionName: 'handleSessionDeletedEvent',
+        additionalData: {
+          sessionId: event.sessionId
+        }
+      });
+    });
+  }
 }

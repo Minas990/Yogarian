@@ -1,0 +1,3 @@
+frontend should either poll or there will be a websocket connection or event better the api-gateway will send events to front-end
+and will act as event consumer
+the final decision not yet selected 

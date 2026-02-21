@@ -1,8 +1,8 @@
-import { CurrentUser, EmailConfirmedGuard, UserDeletedEvent, type UserTokenPayload } from '@app/common';
+import { CurrentUser, EmailConfirmedGuard, SessionCreatedEvent, SessionDeletedEvent, SessionUpdatedEvent, UserDeletedEvent, type UserTokenPayload } from '@app/common';
 import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { NearestSessionsQueryDto } from './dto/nearest-sessions-query.dto';
-import { EventPattern } from '@nestjs/microservices';
+import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { LocationService } from './location-service.service';
 import { CreateLocationDto } from './dto/create-location.dto';
@@ -65,27 +65,27 @@ export class LocationServiceController {
   }
 
   @EventPattern(KAFKA_TOPICS.USER_DELETED)
-  async handleUserDeleted(data: UserDeletedEvent)
+  async handleUserDeleted(@Payload() event: UserDeletedEvent)
   {
-    await this.locationService.handleUserDeleted(data.userId);
+    await this.locationService.handleUserDeleted(event.userId);
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
-  async handleSessionCreated(data: any) 
+  async handleSessionCreated(@Payload() event: SessionCreatedEvent) 
   {
-
+    await this.locationService.handleSessionCreated(event);
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_DELETED)
-  async handleSessionDeleted(data: any)
+  async handleSessionDeleted(@Payload() event: SessionDeletedEvent)
   {
-
+    await this.locationService.handleSessionDeleted(event.sessionId);
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_UPDATED)
-  async handleSessionUpdated(data: any)
+  async handleSessionUpdated(@Payload() event: SessionUpdatedEvent)
   {
-
+    await this.locationService.handleSessionUpdated(event);
   }
 
   @Post('test')

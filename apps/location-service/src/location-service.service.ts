@@ -1,5 +1,5 @@
-import { AppLoggerService } from "@app/common";
-import { KAFKA_SERVICE } from "@app/kafka";
+import { AppLoggerService, LocationCreationFailedEvent, LocationCreationSuccessEvent, LocationUpdateFailedEvent, LocationUpdateSuccessEvent, SessionCreatedEvent, SessionUpdatedEvent } from "@app/common";
+import { KAFKA_SERVICE, KAFKA_TOPICS } from "@app/kafka";
 import { Inject, Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { ClientKafka } from "@nestjs/microservices";
 import { LocationRepo } from "./repos/location.repo";
@@ -88,6 +88,127 @@ export class LocationService implements OnModuleInit {
                 problem: `Error handling user deleted event for userId: ${userId}`,
                 error: error.message
             });
+        }
+    }
+
+    async handleSessionCreated(event: SessionCreatedEvent) {
+        this.logger.logInfo({
+            functionName: 'handleSessionCreated',
+            message: `Creating location for session: ${event.sessionId}`
+        });
+
+        try {
+            const location = new UserLocation({
+                ownerId: event.sessionId,
+                ownerType: OwnerType.SESSION,
+                address: event.address,
+                governorate: event.governorate,
+                point: {
+                    type: 'Point',
+                    coordinates: [event.longitude, event.latitude]
+                }
+            });
+
+            await this.locationRepo.create(location);
+
+            this.kafkaService.emit(
+                KAFKA_TOPICS.LOCATION_CREATED_SUCCESS,
+                new LocationCreationSuccessEvent({ sessionId: event.sessionId })
+            );
+
+            this.logger.logInfo({
+                functionName: 'handleSessionCreated',
+                message: `Location created successfully for session: ${event.sessionId}`
+            });
+        } catch (error) {
+            this.logger.logError({
+                functionName: 'handleSessionCreated',
+                problem: `Failed to create location for session: ${event.sessionId}`,
+                error: error.message
+            });
+
+            this.kafkaService.emit(
+                KAFKA_TOPICS.LOCATION_CREATION_FAILED,
+                new LocationCreationFailedEvent({
+                    sessionId: event.sessionId,
+                    reason: error.message
+                })
+            );
+        }
+    }
+
+    async handleSessionDeleted(sessionId: string) {
+        this.logger.logInfo({
+            functionName: 'handleSessionDeleted',
+            message: `Deleting location for session: ${sessionId}`
+        });
+
+        try {
+            await this.locationRepo.findOneAndDelete({
+                ownerId: sessionId,
+                ownerType: OwnerType.SESSION
+            });
+
+            this.logger.logInfo({
+                functionName: 'handleSessionDeleted',
+                message: `Location deleted successfully for session: ${sessionId}`
+            });
+        } catch (error) {
+            this.logger.logError({
+                functionName: 'handleSessionDeleted',
+                problem: `Failed to delete location for session: ${sessionId}`,
+                error: error.message
+            });
+        }
+    }
+
+    async handleSessionUpdated(event: SessionUpdatedEvent) {
+        this.logger.logInfo({
+            functionName: 'handleSessionUpdated',
+            message: `Updating location for session: ${event.sessionId}`
+        });
+
+        try {
+            const point: Geometry = {
+                type: 'Point',
+                coordinates: [event.longitude, event.latitude]
+            };
+
+            await this.locationRepo.findOneAndUpdate(
+                {
+                    ownerId: event.sessionId,
+                    ownerType: OwnerType.SESSION
+                },
+                {
+                    address: event.address,
+                    governorate: event.governorate,
+                    point
+                }
+            );
+
+            this.kafkaService.emit(
+                KAFKA_TOPICS.LOCATION_UPDATE_SUCCESS,
+                new LocationUpdateSuccessEvent({ sessionId: event.sessionId })
+            );
+
+            this.logger.logInfo({
+                functionName: 'handleSessionUpdated',
+                message: `Location updated successfully for session: ${event.sessionId}`
+            });
+        } catch (error) {
+            this.logger.logError({
+                functionName: 'handleSessionUpdated',
+                problem: `Failed to update location for session: ${event.sessionId}`,
+                error: error.message
+            });
+
+            this.kafkaService.emit(
+                KAFKA_TOPICS.LOCATION_UPDATE_FAILED,
+                new LocationUpdateFailedEvent({
+                    sessionId: event.sessionId,
+                    reason: error.message
+                })
+            );
         }
     }
 

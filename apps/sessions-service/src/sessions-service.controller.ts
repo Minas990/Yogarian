@@ -1,10 +1,10 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { SessionsService } from './services/sessions.service';
-import { CurrentUser, JwtAuthGuard,type UserTokenPayload } from '@app/common';
+import { CurrentUser, JwtAuthGuard, LocationCreationFailedEvent, LocationCreationSuccessEvent, LocationUpdateFailedEvent, LocationUpdateSuccessEvent, type UserTokenPayload, UserDeletedEvent } from '@app/common';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
-import { EventPattern } from '@nestjs/microservices';
+import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { SessionStatus } from './types/sessions-status.type';
 import { GetSessionQueryDto } from './dto/get-session-query.dto';
@@ -51,27 +51,33 @@ export class SessionsServiceController {
     }
 
     @EventPattern(KAFKA_TOPICS.LOCATION_CREATED_SUCCESS)
-    async handleLocationCreated(data:{sessionId:string})
+    async handleLocationCreated(@Payload() event: LocationCreationSuccessEvent)
     {
-      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.ONGOING);
+      return this.sessionsService.updateSessionSessionStatus(event.sessionId,SessionStatus.UPCOMING);
     }
 
     @EventPattern(KAFKA_TOPICS.LOCATION_CREATION_FAILED)
-    async handleLocationDeleted(data:{sessionId:string})
+    async handleLocationDeleted(@Payload() event: LocationCreationFailedEvent)
     {
-      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.FAILED);
+      return this.sessionsService.updateSessionSessionStatus(event.sessionId,SessionStatus.FAILED);
     }
 
     @EventPattern(KAFKA_TOPICS.LOCATION_UPDATE_SUCCESS)
-    async handleLocationUpdated(data:{sessionId:string})
+    async handleLocationUpdated(@Payload() event: LocationUpdateSuccessEvent)
     {
-      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.ONGOING);
+      return this.sessionsService.updateSessionSessionStatus(event.sessionId,SessionStatus.UPCOMING);
     }
 
     @EventPattern(KAFKA_TOPICS.LOCATION_UPDATE_FAILED)
-    async handleLocationUpdateFailed(data:{sessionId:string})
+    async handleLocationUpdateFailed(@Payload() event: LocationUpdateFailedEvent)
     {
-      return this.sessionsService.updateSessionSessionStatus(data.sessionId,SessionStatus.FAILED);
+      return this.sessionsService.updateSessionSessionStatus(event.sessionId,SessionStatus.FAILED);
+    }
+
+    @EventPattern(KAFKA_TOPICS.USER_DELETED)
+    async handleUserDeleted(@Payload() event: UserDeletedEvent)
+    {
+      return this.sessionsService.handleUserDeleted(event.userId);
     }
 
     //endpoint to verify database replication

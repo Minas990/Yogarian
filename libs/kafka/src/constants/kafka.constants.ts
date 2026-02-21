@@ -12,6 +12,14 @@ export const KAFKA_TOPICS = {
     SESSION_DELETED: 'session.deleted',
     SESSION_UPDATED: 'session.updated',
     
+    SESSION_IMAGES_CREATION_APPROVED: 'session.images.creation.approved',
+    SESSION_IMAGES_CREATION_REJECTED: 'session.images.creation.rejected',//for ownership verification
+    SESSION_IMAGES_DELETION_APPROVED: 'session.images.deletion.approved',
+    SESSION_IMAGES_DELETION_REJECTED: 'session.images.deletion.rejected',//for ownership verification
+
+    IMAGES_SESSION_CREATED: 'images.session.created',
+    IMAGES_SESSION_DELETED: 'images.session.deleted',
+
     LOCATION_CREATION_FAILED: 'location.creation.failed',
     LOCATION_CREATED_SUCCESS: 'location.created.success',
     LOCATION_UPDATE_FAILED: 'location.update.failed',

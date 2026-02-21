@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, Inject, ForbiddenEx
 import { SessionsRepository } from '../repos/sessions.repo';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { AppLoggerService, SessionCreatedLocationEvent } from '@app/common';
+import { AppLoggerService, SessionCreatedEvent, SessionCreatedLocationEvent, SessionDeletedEvent, SessionUpdatedEvent } from '@app/common';
 import { CreateSessionDto } from '../dto/create-session.dto';
 import { UpdateSessionDto } from '../dto/update-session.dto';
 import { GetSessionQueryDto } from '../dto/get-session-query.dto';
@@ -39,10 +39,13 @@ export class SessionsService implements OnModuleInit {
     const createdSession = await this.sessionsRepository.create(session);
 
     const locationEvent = new SessionCreatedLocationEvent(createSessionDto.location);
-    this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, {
-      ...locationEvent,
-      sessionId: createdSession.id,
-    });
+    this.kafka.emit(
+      KAFKA_TOPICS.SESSION_CREATED,
+      new SessionCreatedEvent({
+        ...locationEvent,
+        sessionId: createdSession.id,
+      })
+    );
 
     this.appLogger.logInfo({
       functionName: 'create',
@@ -95,10 +98,13 @@ export class SessionsService implements OnModuleInit {
 
     if (location) {
       const locationEvent = new SessionCreatedLocationEvent(location);
-      this.kafka.emit(KAFKA_TOPICS.SESSION_UPDATED, {
-        ...locationEvent,
-        sessionId: id,
-      });
+      this.kafka.emit(
+        KAFKA_TOPICS.SESSION_UPDATED,
+        new SessionUpdatedEvent({
+          ...locationEvent,
+          sessionId: id,
+        })
+      );
     }
 
     this.appLogger.logInfo({
@@ -118,9 +124,10 @@ export class SessionsService implements OnModuleInit {
 
     await this.sessionsRepository.findOneAndDelete({ id });
 
-    this.kafka.emit(KAFKA_TOPICS.SESSION_DELETED, {
-      sessionId: id,
-    });
+    this.kafka.emit(
+      KAFKA_TOPICS.SESSION_DELETED,
+      new SessionDeletedEvent({ sessionId: id })
+    );
 
     this.appLogger.logInfo({
       functionName: 'deleteSession',
@@ -148,6 +155,48 @@ export class SessionsService implements OnModuleInit {
       });
     }
 
+  }
+
+  async handleUserDeleted(userId: string) {
+    this.appLogger.logInfo({
+      functionName: 'handleUserDeleted',
+      message: `Handling user deleted event for userId: ${userId}, deleting trainer sessions`,
+      userId,
+    });
+
+    try {
+      const sessions = await this.sessionsRepository.find({ trainerId: userId });
+      
+      for (const session of sessions) {
+        await this.sessionsRepository.findOneAndDelete({ id: session.id });
+        
+        this.kafka.emit(
+          KAFKA_TOPICS.SESSION_DELETED,
+          new SessionDeletedEvent({ sessionId: session.id })
+        );
+        
+        this.appLogger.logInfo({
+          functionName: 'handleUserDeleted',
+          message: `Deleted session ${session.id} for trainer ${userId}`,
+          userId,
+          additionalData: { sessionId: session.id },
+        });
+      }
+
+      this.appLogger.logInfo({
+        functionName: 'handleUserDeleted',
+        message: `Successfully deleted ${sessions.length} sessions for trainer ${userId}`,
+        userId,
+        additionalData: { deletedCount: sessions.length },
+      });
+    } catch (error) {
+      this.appLogger.logError({
+        functionName: 'handleUserDeleted',
+        problem: `Failed to delete sessions for trainer ${userId}`,
+        userId,
+        error: error.message,
+      });
+    }
   }
 
   // replica testing method
