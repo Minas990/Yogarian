@@ -1,7 +1,8 @@
 import { AbstractRepository } from '@app/database/database,repository';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { EntityManager, FindOptionsRelations, FindOptionsWhere, Repository } from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
 import { Session } from '../models/session.model';
 import { SessionStatus } from '../types/sessions-status.type';
 
@@ -71,5 +72,5 @@ export class SessionsRepository extends AbstractRepository<Session> {
       total,
     };
   }
-
+  
 }

@@ -22,9 +22,17 @@ export interface LogInfoOptions {
 
 export const SERVICE_NAME_TOKEN = 'SERVICE_NAME';
 
+const ANSI_RESET = '\x1b[0m';
+const ANSI_BLUE = '\x1b[34m';
+const ANSI_RED = '\x1b[31m';
+
 @Injectable()
 export class AppLoggerService {
   private logDir = join(process.cwd(), '..', '..', 'logs');
+
+  private colorize(text: string, color: string): string {
+    return `${color}${text}${ANSI_RESET}`;
+  }
 
   constructor(
     @Optional()
@@ -37,8 +45,8 @@ export class AppLoggerService {
     const { functionName, problem, userId, error, additionalData } = options;
 
     const consoleMessage = `[${serviceName}] ERROR in ${functionName}: ${problem}${userId ? ` (User ID: ${userId})` : ''}`;
-    console.error(consoleMessage);
-    console.error(error);
+    console.error(this.colorize(consoleMessage, ANSI_RED));
+    console.error(this.colorize(error.stack || error.message, ANSI_RED));
 
     this.writeErrorLog({
       timestamp: new Date().toISOString(),
@@ -60,7 +68,7 @@ export class AppLoggerService {
     const { functionName, message, userId, additionalData } = options;
 
     const consoleMessage = `[${serviceName}] INFO in ${functionName}: ${message}${userId ? ` (User ID: ${userId})` : ''}`;
-    console.log(consoleMessage);
+    console.log(this.colorize(consoleMessage, ANSI_BLUE));
   }
 
   private async writeErrorLog(logData: Record<string, any>): Promise<void> {

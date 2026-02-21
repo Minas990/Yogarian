@@ -9,6 +9,8 @@ import { GetSessionQueryDto } from '../dto/get-session-query.dto';
 import { Session } from '../models/session.model';
 import { SessionStatus } from '../types/sessions-status.type';
 import { randomUUID } from 'crypto';
+import { In, Or } from 'typeorm';
+import { object } from 'zod';
 
 @Injectable()
 export class SessionsService implements OnModuleInit {
@@ -78,23 +80,33 @@ export class SessionsService implements OnModuleInit {
   }
 
   async updateSession(userId: string, id: string, updateSessionDto: UpdateSessionDto): Promise<Session> {
-    const session = await this.sessionsRepository.findOne({ id,status: SessionStatus.UPCOMING });
+    const session = await this.sessionsRepository.findOne({ id, status:In([SessionStatus.UPCOMING,SessionStatus.PENDING]) });
     if (session.trainerId !== userId) {
       throw new ForbiddenException('You are not authorized to update this session');
     }
 
-    this.appLogger.logInfo({
-      functionName: 'updateSession',
-      message: `Updating session with id: ${id}`,
-      userId: userId,
-    });
+    const now = Date.now();
+    const start = new Date(session.startTime).getTime();
+    const twelveHours = 12 * 60 * 60 * 1000;
+
+    if (start - now <= twelveHours)
+        throw new BadRequestException(
+            'You cannot update sessions that start within the next 12 hours'
+        );
+    if(updateSessionDto.maxParticipants && updateSessionDto.maxParticipants < session.currentParticipants)
+        throw new BadRequestException('Max participants cannot be less than current participants');
+    
+    if(session.currentParticipants && updateSessionDto.price)    
+      throw new BadRequestException('You cannot update the price of a session that already has participants');
 
     const updateData: any = { ...updateSessionDto };
     let location = updateData.location;
     delete updateData.location;
     if(location)
       updateData.status = SessionStatus.PENDING;
-    const updatedSession = await this.sessionsRepository.findOneAndUpdate({ id }, updateData);
+    
+    Object.assign(session,updateData);
+    const updatedSession = await this.sessionsRepository.create(session);// we eliminate the possibility of the retuend session to be from the replicas
 
     if (location) {
       const locationEvent = new SessionCreatedLocationEvent(location);
@@ -105,15 +117,15 @@ export class SessionsService implements OnModuleInit {
           sessionId: id,
         })
       );
+      this.appLogger.logInfo({
+        functionName: 'updateSession',
+        message: `Emitted session updated event for session with id: ${id} due to location update`,
+        userId: userId,
+        additionalData: { sessionId: id },
+      });
     }
 
-    this.appLogger.logInfo({
-      functionName: 'updateSession',
-      message: `Session with id: ${id} updated successfully`,
-      userId: userId,
-    });
-
-    return updatedSession;
+    return updatedSession;//some times the returned result are from the replica//old bug , fixed now  see the comment in the line above about eliminating the possibility of the returned session to be from the replicas
   }
 
   async deleteSession(userId: string, id: string): Promise<{ message: string }> {
@@ -121,7 +133,9 @@ export class SessionsService implements OnModuleInit {
     if (session.trainerId !== userId) {
       throw new ForbiddenException('You are not authorized to delete this session');
     }
-
+    if(session.currentParticipants)
+      throw new BadRequestException('You cannot delete a session that already has participants');
+    
     await this.sessionsRepository.findOneAndDelete({ id });
 
     this.kafka.emit(
@@ -150,7 +164,7 @@ export class SessionsService implements OnModuleInit {
     } catch (err) {
       this.appLogger.logError({
         functionName: 'updateSessionSessionStatus',
-        problem: `Failed to update session status for sessionId: ${sessionId} to status: ${status}`,
+        problem: `Failed to update session status for sessionId: ${sessionId} to status: ${status}: ${err.message}`,
         error: err,
       });
     }
@@ -186,10 +200,10 @@ export class SessionsService implements OnModuleInit {
         catch (error)        {
           this.appLogger.logError({
             functionName: 'handleUserDeleted',
-            problem: `Failed to delete session ${session.id} for trainer ${userId}`,
+            problem: `Failed to delete session ${session.id} for trainer ${userId}: ${error.message}`,
             userId,
             additionalData: { sessionId: session.id },
-            error: error.message,
+            error,
           });
         }
       
@@ -222,9 +236,9 @@ export class SessionsService implements OnModuleInit {
     {
       this.appLogger.logError({
         functionName: 'handleImagesCreated',
-        problem: `Failed to handle images created for session ${sessionId} by user ${userId}`,
+        problem: `Failed to handle images created for session ${sessionId} by user ${userId}: ${error.message}`,
         userId,
-        error: error.message,
+        error,
       });
       this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_CREATION_REJECTED,new SessionImagesCreationRejectedEvent({sessionId,photoIds}));
     }
@@ -249,9 +263,9 @@ export class SessionsService implements OnModuleInit {
     {
       this.appLogger.logError({
         functionName: 'handleSessionImagesDeleted',
-        problem: `Failed to handle image deletion for session ${sessionId} by user ${userId}`,
+        problem: `Failed to handle image deletion for session ${sessionId} by user ${userId}: ${error.message}`,
         userId,
-        error: error.message,
+        error,
       });
       this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_DELETION_REJECTED,new SessionImagesDeletionRejectedEvent({sessionId,photoIds}));
     }

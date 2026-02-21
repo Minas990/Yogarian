@@ -77,8 +77,8 @@ export class MediaServiceService implements OnModuleInit {
                     this.logger.logError({
                         functionName,
                         userId,
-                        error: cleanupError.message,
-                        problem: 'Failed to cleanup newly uploaded file after DB update failure'
+                        error: cleanupError,
+                        problem: `Failed to cleanup newly uploaded file after DB update failure: ${cleanupError.message}`
                     });
                 }
             }
@@ -103,7 +103,7 @@ export class MediaServiceService implements OnModuleInit {
 
     async uploadUserFile(userId: string, file: Express.Multer.File) 
     {
-        const existingPhoto = await this.photoRepo.findOne({ ownerType: OwnerType.USER, OwnerId: userId });
+        const existingPhoto = await this.photoRepo.findOne({ ownerType: OwnerType.USER, OwnerId: userId }).catch(() => null);
         if (existingPhoto)
             return { message: 'File already exists for the user, use update endpoint to update the file' };
 
@@ -200,8 +200,8 @@ export class MediaServiceService implements OnModuleInit {
             {
                 this.logger.logError({
                     functionName: 'uploadSessionFile',
-                    problem: 'Failed to upload session file',
-                    error: error.message
+                    problem: `Failed to upload session file: ${error.message}`,
+                    error
                 });
                 errors.push(error.message);
             }

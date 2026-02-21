@@ -36,6 +36,9 @@ export class AuthServiceController {
       message:'Login successful',
       user: {
         userId: user.userId,
+        role:user.role,
+        isEmailConfirmed: user.isEmailConfirmed,
+        created_at:user.createdAt
       },
       token
     }

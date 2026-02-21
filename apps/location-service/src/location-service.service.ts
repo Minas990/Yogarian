@@ -85,8 +85,8 @@ export class LocationService implements OnModuleInit {
         {
             this.logger.logError({
                 functionName: 'handleUserDeleted',
-                problem: `Error handling user deleted event for userId: ${userId}`,
-                error: error.message
+                problem: `Error handling user deleted event for userId: ${userId}: ${error.message}`,
+                error
             });
         }
     }
@@ -123,8 +123,8 @@ export class LocationService implements OnModuleInit {
         } catch (error) {
             this.logger.logError({
                 functionName: 'handleSessionCreated',
-                problem: `Failed to create location for session: ${event.sessionId}`,
-                error: error.message
+                problem: `Failed to create location for session: ${event.sessionId}: ${error.message}`,
+                error
             });
 
             this.kafkaService.emit(
@@ -156,8 +156,8 @@ export class LocationService implements OnModuleInit {
         } catch (error) {
             this.logger.logError({
                 functionName: 'handleSessionDeleted',
-                problem: `Failed to delete location for session: ${sessionId}`,
-                error: error.message
+                problem: `Failed to delete location for session: ${sessionId}: ${error.message}`,
+                error
             });
         }
     }
@@ -198,8 +198,8 @@ export class LocationService implements OnModuleInit {
         } catch (error) {
             this.logger.logError({
                 functionName: 'handleSessionUpdated',
-                problem: `Failed to update location for session: ${event.sessionId}`,
-                error: error.message
+                problem: `Failed to update location for session: ${event.sessionId}: ${error.message}`,
+                error
             });
 
             this.kafkaService.emit(

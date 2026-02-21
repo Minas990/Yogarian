@@ -71,7 +71,7 @@ export class SessionsServiceController {
     @EventPattern(KAFKA_TOPICS.LOCATION_UPDATE_FAILED)
     async handleLocationUpdateFailed(@Payload() event: LocationUpdateFailedEvent)
     {
-      return this.sessionsService.updateSessionSessionStatus(event.sessionId,SessionStatus.FAILED);
+      return this.sessionsService.updateSessionSessionStatus(event.sessionId,SessionStatus.PENDING);
     }
 
     @EventPattern(KAFKA_TOPICS.USER_DELETED)

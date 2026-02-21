@@ -46,7 +46,7 @@ export class EmailService implements OnModuleInit
         {
             await this.appLogger.logError({
                 functionName: 'sendEmail',
-                problem: `Failed to send email to ${to}`,
+                problem: `Failed to send email to ${to}: ${err.message}`,
                 userId: userId,
                 error: err,
                 additionalData: { recipient: to, subject }
@@ -74,7 +74,7 @@ export class EmailService implements OnModuleInit
         {
             await this.appLogger.logError({
                 functionName: 'sendEmailFromTemplate',
-                problem: `Failed to send email from template ${templateName}`,
+                problem: `Failed to send email from template ${templateName}: ${err.message}`,
                 userId: userId,
                 error: err,
                 additionalData: { recipient: to, templateName, variables }

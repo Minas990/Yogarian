@@ -78,8 +78,8 @@ export class MediaServiceController {
       this.logger.logError({
         functionName:'handleUserDeletedEvent',
         userId:event.userId,
-        error:err.message,
-        problem:'Failed to delete user files after receiving user deleted event'
+        error:err,
+        problem:`Failed to delete user files after receiving user deleted event: ${err.message}`
       });
     });
   }
@@ -132,12 +132,12 @@ export class MediaServiceController {
     }).catch((err)=>{
       this.logger.logError({
         functionName:'handleSessionImageApprovedEvent',
-        error: err.message,
+        error: err,
         additionalData: {
           sessionId: event.sessionId,
           photoIds: event.photoIds
         },
-        problem:'Failed to update session image status to approved after receiving session image approved event'
+        problem:`Failed to update session image status to approved after receiving session image approved event: ${err.message}`
       });
     });  
   }
@@ -165,12 +165,12 @@ export class MediaServiceController {
     }).catch((err)=>{
       this.logger.logError({
         functionName:'handleSessionImageRejectedEvent',
-        error: err.message,
+        error: err,
         additionalData: {
           sessionId: event.sessionId,
           photoIds: event.photoIds
         },
-        problem:'Failed to delete pending session images after receiving session image rejected event'
+        problem:`Failed to delete pending session images after receiving session image rejected event: ${err.message}`
       });
     });  
   }
@@ -198,12 +198,12 @@ export class MediaServiceController {
     }).catch((err)=>{
       this.logger.logError({
         functionName:'handleSessionImageDeletionApprovedEvent',
-        error: err.message,
+        error: err,
         additionalData: {
           sessionId: event.sessionId,
           photoIds: event.photoIds
         },
-        problem:'Failed to delete session images after receiving session image deletion approved event'
+        problem:`Failed to delete session images after receiving session image deletion approved event: ${err.message}`
       });
     });  
   }
@@ -245,11 +245,11 @@ export class MediaServiceController {
     }).catch((err) => {
       this.logger.logError({
         functionName: 'handleSessionDeletedEvent',
-        error: err.message,
+        error: err,
         additionalData: {
           sessionId: event.sessionId
         },
-        problem: 'Failed to delete session images after receiving session deleted event'
+        problem: `Failed to delete session images after receiving session deleted event: ${err.message}`
       });
     });
   }
