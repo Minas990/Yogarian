@@ -4,8 +4,6 @@ import { AbstractEntity } from "@app/database/database.entity";
 @Entity()
 export class User extends AbstractEntity<User>
 {
-    @PrimaryGeneratedColumn()
-    id: number;
     //we dont need to make it unique 
     //the truth source here is authentication service
     @Column({unique:true})
@@ -16,10 +14,8 @@ export class User extends AbstractEntity<User>
     followers: Follow[];
     @OneToMany(() => Follow, follow => follow.follower)
     following: Follow[];
-
-    //the userId is a uuid that will be used for authentication and as a reference in other services while the id from AbstractEntity is an auto-incremented integer used as the primary key in the database
-    //that will be transered to user 
-    @Column({ type: 'uuid', unique: true })
+    
+    @Column({ type: 'uuid', primary: true })
     userId: string; 
 
     constructor(entity? : Partial<User>) {

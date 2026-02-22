@@ -1,16 +1,12 @@
-import { LocationDto } from "../dtos/location.dto";
+import { SessionCreatedEvent } from "./session-created.event";
 
-export class SessionCreatedLocationEvent 
+export class SessionCreatedLocationEvent
 {
-    latitude: number;
-    longitude: number;
-    governorate: string;
-    address: string;
-
-    constructor(location: LocationDto) {
-        this.latitude = location.latitude;
-        this.longitude = location.longitude;
-        this.governorate = location.governorate;
-        this.address = location.address;
+    sessionCreatedEvent: SessionCreatedEvent;
+    nearestUsersIds:string[];
+    constructor(sessionCreatedEvent: SessionCreatedEvent, nearestUsersIds:string[])
+    {
+        this.sessionCreatedEvent = sessionCreatedEvent;
+        this.nearestUsersIds = nearestUsersIds;
     }
 }

@@ -13,7 +13,6 @@ export class CreateUserDto extends OmitType(UserProfileDto, ['createdAt', 'userI
 
   @Transform(({ value, obj }) => {
     const rawRole = value ?? obj?.Role;
-    console.log('Raw role value:', rawRole);
     if (typeof rawRole === 'number') {
       const rolesByIndex = [Roles.ADMIN, Roles.USER, Roles.TRAINER];
       return rolesByIndex[rawRole] ?? rawRole;

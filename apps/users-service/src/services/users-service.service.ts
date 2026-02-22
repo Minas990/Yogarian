@@ -1,8 +1,11 @@
-import {  Injectable } from '@nestjs/common';
+import {  Inject, Injectable } from '@nestjs/common';
 import { User } from '../models/user.model';
-import { AppLoggerService,UserProfileDto } from '@app/common';
+import { AppLoggerService,SessionCreatedEvent,UserProfileDto } from '@app/common';
 import { UserRepository } from '../repos/user.repostiroy';
 import { UpdateUserDto } from '../dtos/update-user.dto';
+import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
+import { ClientKafka } from '@nestjs/microservices';
+import { In } from 'typeorm';
 
 
 @Injectable()
@@ -11,6 +14,7 @@ export class UsersService
   constructor(
    private readonly UserRepo:UserRepository,
     private readonly logger: AppLoggerService,
+    @Inject(KAFKA_SERVICE) private readonly kafkaClient: ClientKafka
   )
   {
     
@@ -66,8 +70,6 @@ export class UsersService
     return this.UserRepo.findOneAndUpdate({ userId }, { email });
   }
 
-  // onDelete CASCADE is on Photo side now
-  //deleting user will automatically delete the photo record // same for location
   async deleteUser(userId:string)
   {
     this.logger.logInfo({
@@ -78,6 +80,24 @@ export class UsersService
 
     const user = await this.UserRepo.findOne({userId});
     await this.UserRepo.remove(user);
+  }
+
+  async notifyFollowersAboutNewSession(event: SessionCreatedEvent, followers: string[],message:string)
+  {
+    this.logger.logInfo({
+      functionName: 'notifyFollowersAboutNewSession',
+      message: `Notifying followers about new session for session ${event.sessionId} created by user ${event.userId} with ${followers.length} followers.`,
+    });
+    const emails = await this.UserRepo.find({userId: In(followers) }).then(users => users.map(user => user.email));
+    const trainerName = await this.UserRepo.findOne({userId: event.userId});
+    this.kafkaClient.emit(KAFKA_TOPICS.NEW_SESSION_NOTIFICATION,{
+      emails,
+      sessionId: event.sessionId,
+      trainerName: trainerName.name,
+      trainerId: event.userId,
+      message
+    })
+
   }
 
 }

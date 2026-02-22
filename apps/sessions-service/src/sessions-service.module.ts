@@ -22,17 +22,18 @@ import { LOCATION_PACKAGE_NAME, LOCATION_SERVICE_NAME } from '@app/common/genera
       envFilePath:['.env','./apps/sessions-service/.env'],
     }),
     KafkaModule.register(),
-    ClientsModule.register({
-      clients: [{
-        name: LOCATION_SERVICE_NAME,
+    ClientsModule.registerAsync([{
+      name: LOCATION_SERVICE_NAME,
+      inject: [ConfigService],
+      useFactory: (cs:ConfigService) => ({
         transport:Transport.GRPC,
         options: {
           package: LOCATION_PACKAGE_NAME,
-          url : 'localhost:8004',
-          protoPath: 'libs/common/src/proto/location.proto'
+          url : cs.getOrThrow<string>('LOCATION_SERVICE_URL') + ":" + cs.getOrThrow<string>('LOCATION_GRPC_PORT'),
+          protoPath:'libs/common/src/proto/location.proto',
         }
-      }]
-    }),
+      })
+    }]),
     DatabaseModule,
     DatabaseModule.forFeature([Session]),
     MulterModule.register({

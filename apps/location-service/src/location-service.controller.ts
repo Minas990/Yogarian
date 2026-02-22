@@ -106,9 +106,5 @@ export class LocationServiceController {
   {
     await this.locationService.getNearbyUsers(event);
   }
-  @Post('test')
-  async test(@Body() body: any)
-  {
-    return this.locationService.test(body);
-  }
+
 }

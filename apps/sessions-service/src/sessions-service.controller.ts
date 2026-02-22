@@ -68,11 +68,5 @@ export class SessionsServiceController {
       return this.sessionsService.handleSessionImagesDeleted(event.userId,event.sessionId,event.photoIds);
     }
 
-    //endpoint to verify database replication
-    @Get('test/replication')
-    async testReplication()
-    {
-      return this.sessionsService.testReplicationFollowing();
-    }
   
 }

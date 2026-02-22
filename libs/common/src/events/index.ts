@@ -18,3 +18,4 @@ export * from './location-creation-success.event';
 export * from './location-creation-failed.event';
 export * from './location-update-success.event';
 export * from './location-update-failed.event';
+export * from './new-session-notification.event';

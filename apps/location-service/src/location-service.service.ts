@@ -1,4 +1,4 @@
-import { AppLoggerService, LocationCreationFailedEvent, LocationCreationSuccessEvent, LocationUpdateFailedEvent, LocationUpdateSuccessEvent, SessionCreatedEvent, SessionUpdatedEvent } from "@app/common";
+import { AppLoggerService, LocationCreationFailedEvent, LocationCreationSuccessEvent, LocationUpdateFailedEvent, LocationUpdateSuccessEvent, SessionCreatedEvent, SessionCreatedLocationEvent, SessionUpdatedEvent } from "@app/common";
 import { KAFKA_SERVICE, KAFKA_TOPICS } from "@app/kafka";
 import { Inject, Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { ClientKafka } from "@nestjs/microservices";
@@ -153,29 +153,18 @@ export class LocationService implements OnModuleInit {
     async getNearbyUsers(event: SessionCreatedEvent)
     {
         const nearbyUsers = await this.locationRepo.findNearestUsers(event.latitude, event.longitude, 10000,100);//nearest 100 user that are
+        if(!nearbyUsers.length) 
+            return ;//no need to emit event if no nearby users
+
         this.logger.logInfo({
             functionName: 'getNearbyUsers',
             message: `Found ${nearbyUsers.length} nearby users for session ${event.sessionId}`
         });
-        this.kafkaService.emit(KAFKA_TOPICS.NEAREST_USERS_FOUND, {
-            sessionId: event.sessionId,
-            users: nearbyUsers
-        })
+
+        
+        const eventEmit = new SessionCreatedLocationEvent(event,nearbyUsers.map(user => user.ul_ownerId));
+        this.kafkaService.emit(KAFKA_TOPICS.NEAREST_USERS_FOUND, eventEmit);
     }
 
-    async test(body: any)
-    {
-        const location = new Location({
-            ownerId: body.ownerId,
-            ownerType: body.ownerType,
-            address: body.address,
-            governorate: body.governorate,
-            point: {
-                type: 'Point',
-                coordinates: [body.longitude, body.latitude]
-            }
-        });
-        return this.locationRepo.create(location);
-    }
 
 }

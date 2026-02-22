@@ -54,7 +54,7 @@ async findNearestSessionsId(
     return qb.getRawMany();
 }
 
-async findNearestUsers(latitude: number, longitude: number, radius: number, limit: number) 
+async findNearestUsers(latitude: number, longitude: number, radius: number, limit: number) : Promise<{ul_ownerId: string}[]>
 {
     const qb = this.entityRepository.createQueryBuilder('ul');
 

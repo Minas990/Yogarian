@@ -86,6 +86,15 @@
         ]
       }
     },
+    "payment-orchestrator": {
+      "type": "application",
+      "root": "apps/payment-orchestrator",
+      "entryFile": "main",
+      "sourceRoot": "apps/payment-orchestrator/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/payment-orchestrator/tsconfig.app.json"
+      }
+    },
     "payments-service": {
       "type": "application",
       "root": "apps/payments-service",
@@ -102,6 +111,15 @@
       "sourceRoot": "apps/report-service/src",
       "compilerOptions": {
         "tsConfigPath": "apps/report-service/tsconfig.app.json"
+      }
+    },
+    "reservations-service": {
+      "type": "application",
+      "root": "apps/reservations-service",
+      "entryFile": "main",
+      "sourceRoot": "apps/reservations-service/src",
+      "compilerOptions": {
+        "tsConfigPath": "apps/reservations-service/tsconfig.app.json"
       }
     },
     "sessions-service": {

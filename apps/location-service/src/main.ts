@@ -27,7 +27,7 @@ async function bootstrap() {
     transport: Transport.GRPC,
     options: {
       package: LOCATION_PACKAGE_NAME,
-      url:  'localhost:8004',
+      url:  cs.getOrThrow('LOCATION_SERVICE_URL') + ":" + cs.getOrThrow('LOCATION_GRPC_PORT'),
       protoPath: 'libs/common/src/proto/location.proto',
   }
   });

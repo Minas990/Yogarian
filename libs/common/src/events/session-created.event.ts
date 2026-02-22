@@ -8,4 +8,5 @@ export class SessionCreatedEvent {
   longitude: number;
   governorate: string;
   address: string;
+  userId:string;
 }

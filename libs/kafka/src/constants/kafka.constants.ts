@@ -21,7 +21,7 @@ export const KAFKA_TOPICS = {
     IMAGES_SESSION_DELETED: 'images.session.deleted',
 
     NEAREST_USERS_FOUND: 'nearest.users.found',
-
+    NEW_SESSION_NOTIFICATION: 'new.session.notification',
     //removed location creation/update events for gRPC migration
 } as const;
 

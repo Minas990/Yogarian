@@ -46,5 +46,30 @@ export class NotificationsServiceController {
     );
   }
 
-
+  @EventPattern(KAFKA_TOPICS.NEW_SESSION_NOTIFICATION)
+  async sendNewSessionNotification(data: {
+    emails: string[],
+    sessionId: string,
+    trainerName: string,
+    trainerId: string,
+    message: string
+  }) {
+    const sendResults = await Promise.all(
+      data.emails.map(email =>
+        this.emailService.sendEmailFromTemplate(
+          email,
+          'New Session',
+          'newSessionNotification',
+          {
+            message: data.message,
+            sessionId: data.sessionId,
+            trainerName: data.trainerName,
+            trainerId: data.trainerId
+          },
+          data.trainerId
+        )
+      )
+    );
+    return sendResults;
+  }
 }
