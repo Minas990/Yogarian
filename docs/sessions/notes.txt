@@ -1,0 +1,13 @@
+frontend should either poll or there will be a websocket connection or even better the api-gateway will send events 
+maybe in the future will act as  a consumer via kafka
+the final decision not yet selected  
+
+Before shifting toward gRPC for creating the session
+I realized it would become very complicated and not worth the effort to implement it using an event-driven model
+especially since there will be another service (Reservations Service)
+The choreographed saga would become increasingly complex
+and it’s not worth creating an orchestrator for that
+Instead, for this specific task (creating and updating)
+I chose to use synchronous protocols
+ at the end all i want to say is : 
+For this specific business flow (create/update session) strong consistency is more important than decoupling so I prefer synchronous calls over a saga
