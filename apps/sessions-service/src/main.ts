@@ -5,6 +5,7 @@ import { ConfigService } from '@nestjs/config';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { KAFKA_BROKER } from '@app/kafka';
 import { ValidationPipe } from '@nestjs/common';
+import { LOCATION_PACKAGE_NAME } from '@app/common/generated/location';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(SessionsServiceModule);

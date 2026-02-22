@@ -12,6 +12,8 @@ import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Session } from './models/session.model';
 import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
+import { ClientsModule, Transport } from '@nestjs/microservices';
+import { LOCATION_PACKAGE_NAME, LOCATION_SERVICE_NAME } from '@app/common/generated/location';
 
 @Module({
   imports: [
@@ -20,6 +22,17 @@ import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth
       envFilePath:['.env','./apps/sessions-service/.env'],
     }),
     KafkaModule.register(),
+    ClientsModule.register({
+      clients: [{
+        name: LOCATION_SERVICE_NAME,
+        transport:Transport.GRPC,
+        options: {
+          package: LOCATION_PACKAGE_NAME,
+          url : 'localhost:8004',
+          protoPath: 'libs/common/src/proto/location.proto'
+        }
+      }]
+    }),
     DatabaseModule,
     DatabaseModule.forFeature([Session]),
     MulterModule.register({

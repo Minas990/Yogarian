@@ -1,14 +1,14 @@
 import {  EntityManager, Repository } from "typeorm";
 import { InjectRepository } from "@nestjs/typeorm";
 import { AbstractRepository } from "@app/database/database,repository";
-import { UserLocation } from "../models/location.model";
+import { Location } from "../models/location.model";
 import { Injectable } from "@nestjs/common";
 import { OwnerType } from "@app/common/types/owners.types";
 
 @Injectable()
-export class LocationRepo extends AbstractRepository<UserLocation>
+export class LocationRepo extends AbstractRepository<Location>
 {
-    constructor(@InjectRepository(UserLocation) userLocationRepository: Repository<UserLocation>, entityManager: EntityManager)
+    constructor(@InjectRepository(Location) userLocationRepository: Repository<Location>, entityManager: EntityManager)
     {
         super(userLocationRepository, entityManager);
     }
@@ -54,4 +54,29 @@ async findNearestSessionsId(
     return qb.getRawMany();
 }
 
+async findNearestUsers(latitude: number, longitude: number, radius: number, limit: number) 
+{
+    const qb = this.entityRepository.createQueryBuilder('ul');
+
+    const sessionPoint = `
+        ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography
+    `;
+    qb.select([
+        'ul.ownerId',
+    ]);
+    qb.where(
+        `ST_DWithin(ul.point, ${sessionPoint}, :radius)`
+    ).andWhere(
+        'ul.ownerType = :ownerType',
+        { ownerType: OwnerType.USER }
+    );
+    qb.setParameters({
+        latitude,
+        longitude,
+        radius
+    });
+    qb.orderBy(`ul.point <-> ${sessionPoint}`, 'ASC');
+    qb.limit(limit);
+    return qb.getRawMany();
+}
 }

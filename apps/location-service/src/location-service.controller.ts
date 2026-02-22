@@ -1,3 +1,4 @@
+import { GrpcMethod } from '@nestjs/microservices';
 import { CurrentUser, EmailConfirmedGuard, SessionCreatedEvent, SessionDeletedEvent, SessionUpdatedEvent, UserDeletedEvent, type UserTokenPayload } from '@app/common';
 import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
@@ -8,11 +9,13 @@ import { LocationService } from './location-service.service';
 import { CreateLocationDto } from './dto/create-location.dto';
 import { UpdateLocationDto } from './dto/update-location.dto';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
+import { CreateLocationRequest, LOCATION_SERVICE_NAME, LocationServiceControllerMethods, UpdateLocationRequest } from '@app/common/generated/location';
 
 
 @UseGuards(HttpOnlyJwtAuthGuard)
 @Controller('location')
 export class LocationServiceController {
+
   constructor( private readonly locationService: LocationService) {}
 
   @UseGuards(LongThrottleGuard,EmailConfirmedGuard)
@@ -64,16 +67,32 @@ export class LocationServiceController {
     return this.locationService.getSessionLocation(sessionId);
   }
 
+
+
+  @GrpcMethod(LOCATION_SERVICE_NAME, 'CreateLocation')
+  async grpcCreateLocation(data: CreateLocationRequest) {
+    try {
+      const result = await this.locationService.handleSessionCreated(data);
+      return { success: true, ...result };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
+  @GrpcMethod(LOCATION_SERVICE_NAME, 'UpdateLocation')
+  async grpcUpdateLocation(data: UpdateLocationRequest) {
+    try {
+      await this.locationService.handleSessionUpdated(data);
+      return { success: true };
+    } catch (error) {
+      return { success: false, error: error.message };
+    }
+  }
+
   @EventPattern(KAFKA_TOPICS.USER_DELETED)
   async handleUserDeleted(@Payload() event: UserDeletedEvent)
   {
     await this.locationService.handleUserDeleted(event.userId);
-  }
-
-  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
-  async handleSessionCreated(@Payload() event: SessionCreatedEvent) 
-  {
-    await this.locationService.handleSessionCreated(event);
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_DELETED)
@@ -82,12 +101,11 @@ export class LocationServiceController {
     await this.locationService.handleSessionDeleted(event.sessionId);
   }
 
-  @EventPattern(KAFKA_TOPICS.SESSION_UPDATED)
-  async handleSessionUpdated(@Payload() event: SessionUpdatedEvent)
+  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
+  async handleSessionCreated(@Payload() event: SessionCreatedEvent)
   {
-    await this.locationService.handleSessionUpdated(event);
+    await this.locationService.getNearbyUsers(event);
   }
-
   @Post('test')
   async test(@Body() body: any)
   {

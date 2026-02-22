@@ -20,10 +20,9 @@ export const KAFKA_TOPICS = {
     IMAGES_SESSION_CREATED: 'images.session.created',
     IMAGES_SESSION_DELETED: 'images.session.deleted',
 
-    LOCATION_CREATION_FAILED: 'location.creation.failed',
-    LOCATION_CREATED_SUCCESS: 'location.created.success',
-    LOCATION_UPDATE_FAILED: 'location.update.failed',
-    LOCATION_UPDATE_SUCCESS: 'location.update.success',
+    NEAREST_USERS_FOUND: 'nearest.users.found',
+
+    //removed location creation/update events for gRPC migration
 } as const;
 
 export type KafkaTopics = (typeof KAFKA_TOPICS)[keyof typeof KAFKA_TOPICS];

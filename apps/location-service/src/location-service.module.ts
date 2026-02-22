@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { LocationServiceController } from './location-service.controller';
 import { KafkaModule } from '@app/kafka';
 import { DatabaseModule } from '@app/database';
-import { UserLocation } from './models/location.model';
+import { Location } from './models/location.model';
 import { JwtStrategy, LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
@@ -18,7 +18,7 @@ import { LocationService } from './location-service.service';
     }),
     KafkaModule.register(),
     DatabaseModule,
-    DatabaseModule.forFeature([UserLocation]),
+    DatabaseModule.forFeature([Location]),
     LoggerModule.forService('location-service'),
     
     RateLimiterModule.registerAsync({
@@ -44,6 +44,7 @@ import { LocationService } from './location-service.service';
   providers: [{
     provide: APP_INTERCEPTOR,
     useClass: RequestLoggerInterceptor,
-  },MediumThrottleGuard,LongThrottleGuard,JwtStrategy,LocationRepo,LocationService],
+  },MediumThrottleGuard,LongThrottleGuard,JwtStrategy,LocationRepo,LocationService,
+  ],
 })
 export class LocationServiceModule {}

@@ -3,5 +3,5 @@ export enum SessionStatus {
   ONGOING = 'ongoing',
   COMPLETED = 'completed',
   PENDING = 'pending',
-  FAILED = 'failed',
+  CANCELLED = 'cancelled',
 }

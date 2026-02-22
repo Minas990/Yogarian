@@ -1,16 +1,17 @@
 import { Injectable, BadRequestException, NotFoundException, Inject, ForbiddenException, OnModuleInit } from '@nestjs/common';
 import { SessionsRepository } from '../repos/sessions.repo';
-import { ClientKafka } from '@nestjs/microservices';
+import { type ClientGrpc, ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { AppLoggerService, SessionCreatedEvent, SessionCreatedLocationEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, SessionUpdatedEvent } from '@app/common';
+import { AppLoggerService, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, SessionUpdatedEvent } from '@app/common';
 import { CreateSessionDto } from '../dto/create-session.dto';
 import { UpdateSessionDto } from '../dto/update-session.dto';
 import { GetSessionQueryDto } from '../dto/get-session-query.dto';
 import { Session } from '../models/session.model';
 import { SessionStatus } from '../types/sessions-status.type';
 import { randomUUID } from 'crypto';
-import { In, Or } from 'typeorm';
-import { object } from 'zod';
+import { In } from 'typeorm';
+import { CreateLocationRequest, LOCATION_SERVICE_NAME, LocationServiceClient, UpdateLocationRequest } from '@app/common/generated/location';
+import { firstValueFrom } from 'rxjs';
 
 @Injectable()
 export class SessionsService implements OnModuleInit {
@@ -18,6 +19,7 @@ export class SessionsService implements OnModuleInit {
     private readonly sessionsRepository: SessionsRepository,
     @Inject(KAFKA_SERVICE) private readonly kafka: ClientKafka,
     private readonly appLogger: AppLoggerService,
+    @Inject(LOCATION_SERVICE_NAME) private readonly locationGrpcClient: ClientGrpc,
   ) {}
 
   async onModuleInit() {
@@ -40,22 +42,38 @@ export class SessionsService implements OnModuleInit {
 
     const createdSession = await this.sessionsRepository.create(session);
 
-    const locationEvent = new SessionCreatedLocationEvent(createSessionDto.location);
-    this.kafka.emit(
-      KAFKA_TOPICS.SESSION_CREATED,
-      new SessionCreatedEvent({
-        ...locationEvent,
-        sessionId: createdSession.id,
-      })
-    );
+    
+    const locationPayload: CreateLocationRequest = {
+      ownerId: createdSession.id,
+      ...createSessionDto.location,
+      address: createSessionDto.location.address,
+      latitude: createSessionDto.location.latitude,
+      longitude: createSessionDto.location.longitude,
+      createdAt: createdSession.createdAt.toISOString(), 
+    };
+
+    const locationService = this.locationGrpcClient.getService<LocationServiceClient>('LocationService');
+    const locationResult =await firstValueFrom(locationService.createLocation({...locationPayload}));
+
+    if (!locationResult.success) {
+      await this.sessionsRepository.findOneAndDelete({ id: createdSession.id });
+      throw new BadRequestException('Location creation failed: ' + locationResult.error);
+    }
 
     this.appLogger.logInfo({
       functionName: 'create',
-      message: `Session created with id: ${createdSession.id}`,
+      message: `Session and location created with id: ${createdSession.id}`,
       userId: userId,
       additionalData: { sessionId: createdSession.id },
     });
 
+    this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, new SessionCreatedEvent({
+      address: locationPayload.address,
+      governorate: locationPayload.governorate,
+      latitude: locationPayload.latitude,
+      longitude: locationPayload.longitude,
+      sessionId: createdSession.id,
+    }));
     return createdSession;
   }
 
@@ -102,30 +120,28 @@ export class SessionsService implements OnModuleInit {
     const updateData: any = { ...updateSessionDto };
     let location = updateData.location;
     delete updateData.location;
-    if(location)
-      updateData.status = SessionStatus.PENDING;
-    
+
     Object.assign(session,updateData);
-    const updatedSession = await this.sessionsRepository.create(session);// we eliminate the possibility of the retuend session to be from the replicas
+    const updatedSession = await this.sessionsRepository.create(session);
 
     if (location) {
-      const locationEvent = new SessionCreatedLocationEvent(location);
-      this.kafka.emit(
-        KAFKA_TOPICS.SESSION_UPDATED,
-        new SessionUpdatedEvent({
-          ...locationEvent,
-          sessionId: id,
-        })
-      );
+      const locationPayload:UpdateLocationRequest = {
+        ownerId: id,
+        ...location,
+      };
+      const locationService = this.locationGrpcClient.getService<LocationServiceClient>('LocationService');
+      const locationResult = await firstValueFrom(locationService.updateLocation({...locationPayload}));
+      if (!locationResult.success) {
+        throw new BadRequestException('Location update failed: ' + locationResult.error);
+      }
       this.appLogger.logInfo({
         functionName: 'updateSession',
-        message: `Emitted session updated event for session with id: ${id} due to location update`,
+        message: `Session and location updated for session with id: ${id}`,
         userId: userId,
         additionalData: { sessionId: id },
       });
     }
-
-    return updatedSession;//some times the returned result are from the replica//old bug , fixed now  see the comment in the line above about eliminating the possibility of the returned session to be from the replicas
+    return updatedSession;
   }
 
   async deleteSession(userId: string, id: string): Promise<{ message: string }> {

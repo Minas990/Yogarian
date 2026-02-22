@@ -4,9 +4,10 @@ import { Inject, Injectable, NotFoundException, OnModuleInit } from "@nestjs/com
 import { ClientKafka } from "@nestjs/microservices";
 import { LocationRepo } from "./repos/location.repo";
 import { CreateLocationDto } from "./dto/create-location.dto";
-import { Geometry, UserLocation } from "./models/location.model";
+import { Geometry, Location } from "./models/location.model";
 import { OwnerType } from "@app/common/types/owners.types";
 import { UpdateLocationDto } from "./dto/update-location.dto";
+import { CreateLocationRequest, UpdateLocationRequest, UpdateLocationResponse } from "@app/common/generated/location";
 
 @Injectable()
 export class LocationService implements OnModuleInit {
@@ -23,9 +24,9 @@ export class LocationService implements OnModuleInit {
         return  this.locationRepo.findOne({ownerId: userId, ownerType: OwnerType.USER});
     }
 
-    async createLocation(userId: string, dto: CreateLocationDto): Promise<UserLocation> 
+    async createLocation(userId: string, dto: CreateLocationDto): Promise<Location> 
     {
-        const location = new UserLocation({
+        const location = new Location({
             ownerId: userId,
             ownerType: OwnerType.USER,
             address: dto.address,
@@ -91,52 +92,21 @@ export class LocationService implements OnModuleInit {
         }
     }
 
-    async handleSessionCreated(event: SessionCreatedEvent) {
-        this.logger.logInfo({
-            functionName: 'handleSessionCreated',
-            message: `Creating location for session: ${event.sessionId}`
-        });
-
-        try {
-            const location = new UserLocation({
-                ownerId: event.sessionId,
-                ownerType: OwnerType.SESSION,
-                address: event.address,
-                governorate: event.governorate,
-                point: {
-                    type: 'Point',
-                    coordinates: [event.longitude, event.latitude]
-                }
-            });
-
-            await this.locationRepo.create(location);
-
-            this.kafkaService.emit(
-                KAFKA_TOPICS.LOCATION_CREATED_SUCCESS,
-                new LocationCreationSuccessEvent({ sessionId: event.sessionId })
-            );
-
-            this.logger.logInfo({
-                functionName: 'handleSessionCreated',
-                message: `Location created successfully for session: ${event.sessionId}`
-            });
-        } catch (error) {
-            this.logger.logError({
-                functionName: 'handleSessionCreated',
-                problem: `Failed to create location for session: ${event.sessionId}: ${error.message}`,
-                error
-            });
-
-            this.kafkaService.emit(
-                KAFKA_TOPICS.LOCATION_CREATION_FAILED,
-                new LocationCreationFailedEvent({
-                    sessionId: event.sessionId,
-                    reason: error.message
-                })
-            );
-        }
+    async handleSessionCreated(createLocation: CreateLocationRequest)//for grpc call
+    {
+        const location = new Location({
+            ownerId: createLocation.ownerId,
+            ownerType: OwnerType.SESSION,
+            address: createLocation.address,
+            governorate: createLocation.governorate,
+            point: {
+                type: 'Point',
+                coordinates: [createLocation.longitude, createLocation.latitude]
+            },
+            createdAt: new Date(createLocation.createdAt)
+        })
+        return this.locationRepo.create(location);
     }
-
     async handleSessionDeleted(sessionId: string) {
         this.logger.logInfo({
             functionName: 'handleSessionDeleted',
@@ -162,59 +132,40 @@ export class LocationService implements OnModuleInit {
         }
     }
 
-    async handleSessionUpdated(event: SessionUpdatedEvent) {
-        this.logger.logInfo({
-            functionName: 'handleSessionUpdated',
-            message: `Updating location for session: ${event.sessionId}`
-        });
-
-        try {
-            const point: Geometry = {
+    async handleSessionUpdated(data: UpdateLocationRequest)   {
+        const location = await this.locationRepo.findOne({ownerId:data.ownerId,ownerType: OwnerType.SESSION});
+        if(!location)
+            throw new NotFoundException(`Location for session ${data.ownerId} not found`);
+        let point : Geometry | undefined = undefined;
+        if(data.latitude && data.longitude)
+            point = {
                 type: 'Point',
-                coordinates: [event.longitude, event.latitude]
+                coordinates: [data.longitude, data.latitude]
             };
+        point = point ?? location.point;
+        return this.locationRepo.findOneAndUpdate({ownerId:data.ownerId,ownerType: OwnerType.SESSION},{
+            address: data.address,
+            governorate: data.governorate,
+            point
+        });
+    }
 
-            await this.locationRepo.findOneAndUpdate(
-                {
-                    ownerId: event.sessionId,
-                    ownerType: OwnerType.SESSION
-                },
-                {
-                    address: event.address,
-                    governorate: event.governorate,
-                    point
-                }
-            );
-
-            this.kafkaService.emit(
-                KAFKA_TOPICS.LOCATION_UPDATE_SUCCESS,
-                new LocationUpdateSuccessEvent({ sessionId: event.sessionId })
-            );
-
-            this.logger.logInfo({
-                functionName: 'handleSessionUpdated',
-                message: `Location updated successfully for session: ${event.sessionId}`
-            });
-        } catch (error) {
-            this.logger.logError({
-                functionName: 'handleSessionUpdated',
-                problem: `Failed to update location for session: ${event.sessionId}: ${error.message}`,
-                error
-            });
-
-            this.kafkaService.emit(
-                KAFKA_TOPICS.LOCATION_UPDATE_FAILED,
-                new LocationUpdateFailedEvent({
-                    sessionId: event.sessionId,
-                    reason: error.message
-                })
-            );
-        }
+    async getNearbyUsers(event: SessionCreatedEvent)
+    {
+        const nearbyUsers = await this.locationRepo.findNearestUsers(event.latitude, event.longitude, 10000,100);//nearest 100 user that are
+        this.logger.logInfo({
+            functionName: 'getNearbyUsers',
+            message: `Found ${nearbyUsers.length} nearby users for session ${event.sessionId}`
+        });
+        this.kafkaService.emit(KAFKA_TOPICS.NEAREST_USERS_FOUND, {
+            sessionId: event.sessionId,
+            users: nearbyUsers
+        })
     }
 
     async test(body: any)
     {
-        const location = new UserLocation({
+        const location = new Location({
             ownerId: body.ownerId,
             ownerType: body.ownerType,
             address: body.address,

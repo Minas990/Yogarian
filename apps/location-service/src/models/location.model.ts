@@ -10,7 +10,7 @@ export interface Geometry {
 @Index(["ownerType", "ownerId"])
 
 @Entity()
-export class UserLocation extends AbstractEntity<UserLocation> 
+export class Location extends AbstractEntity<Location> 
 {
     @PrimaryGeneratedColumn()
     id:number;
@@ -33,7 +33,7 @@ export class UserLocation extends AbstractEntity<UserLocation>
     @Index({ spatial: true })
     point: Geometry //latitude and longitude , first is longitude then latitude: idk why i always get it wrong :)
     
-    constructor(entity?: Partial<UserLocation>) {
+    constructor(entity?: Partial<Location>) {
         super();
         Object.assign(this, entity);
     }
