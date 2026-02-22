@@ -11,3 +11,4 @@ Instead, for this specific task (creating and updating)
 I chose to use synchronous protocols
  at the end all i want to say is : 
 For this specific business flow (create/update session) strong consistency is more important than decoupling so I prefer synchronous calls over a saga
+i keepts the old diagram
