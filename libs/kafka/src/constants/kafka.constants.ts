@@ -8,6 +8,15 @@ export const KAFKA_TOPICS = {
     OTP_SENT: 'otp.sent',
     PASSWORD_RESET_TOKEN_SENT: 'password.reset.token.sent',
 
+
+    USER_PROFILE_CREATED: 'user.profile.created',
+    USER_PROFILE_UPDATED: 'user.profile.updated',
+
+    IMAGE_USER_PROFILE_CREATED: 'image.user.profile.created',
+    IMAGE_USER_PROFILE_DELETED: 'image.user.profile.deleted',
+    IMAGE_USER_PROFILE_UPDATED: 'image.user.profile.updated',
+    
+
     SESSION_CREATED: 'session.created',
     SESSION_DELETED: 'session.deleted',
     SESSION_UPDATED: 'session.updated',

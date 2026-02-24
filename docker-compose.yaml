@@ -118,8 +118,6 @@ services:
   postgres-sessions:
     image: postgres:15.1-alpine
     container_name: yoga-postgres-sessions
-    entrypoint: ["/bin/bash", "/etc/postgresql/primary-entrypoint.sh"]
-    command: ["-c", "wal_level=replica", "-c", "max_wal_senders=10", "-c", "max_replication_slots=10", "-c", "hot_standby=on"]
     ports:
       - "5437:5432"
     environment:
@@ -128,30 +126,60 @@ services:
       POSTGRES_DB: sessions
     volumes:
       - postgres-sessions-data:/var/lib/postgresql/data
-      - ./docker/postgres/sessions/master/init:/docker-entrypoint-initdb.d
-      - ./docker/postgres/sessions/master/primary-entrypoint.sh:/etc/postgresql/primary-entrypoint.sh:ro
     networks:
       - yoga-network
 
-  postgres-sessions-slave:
+  postgres-reservations:
     image: postgres:15.1-alpine
-    container_name: yoga-postgres-sessions-slave
-    depends_on:
-      - postgres-sessions
-    entrypoint: ["/bin/bash", "/etc/postgresql/replica-entrypoint.sh"]
+    container_name: yoga-postgres-reservations
     ports:
       - "5438:5432"
     environment:
-      POSTGRES_USER: sessions
-      POSTGRES_PASSWORD: sessions
-      POSTGRES_DB: sessions
-      PG_PRIMARY_HOST: postgres-sessions
-      PG_PRIMARY_PORT: 5432
-      PG_PRIMARY_USER: sessions
-      PG_PRIMARY_PASSWORD: sessions
+      POSTGRES_USER: reservations
+      POSTGRES_PASSWORD: reservations
+      POSTGRES_DB: reservations
     volumes:
-      - postgres-sessions-slave-data:/var/lib/postgresql/data
-      - ./docker/postgres/sessions/slave/replica-entrypoint.sh:/etc/postgresql/replica-entrypoint.sh:ro
+      - postgres-reservations-data:/var/lib/postgresql/data
+    networks:
+      - yoga-network
+
+  postgres-search:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: yoga-postgres-search
+    entrypoint: ["/bin/bash", "/etc/postgresql/primary-entrypoint.sh"]
+    command: ["-c", "wal_level=replica", "-c", "max_wal_senders=10", "-c", "max_replication_slots=10", "-c", "hot_standby=on"]
+    ports:
+      - "5439:5432"
+    environment:
+      POSTGRES_USER: search
+      POSTGRES_PASSWORD: search
+      POSTGRES_DB: search
+    volumes:
+      - postgres-search-data:/var/lib/postgresql/data
+      - ./docker/postgres/search/master/init:/docker-entrypoint-initdb.d
+      - ./docker/postgres/search/master/primary-entrypoint.sh:/etc/postgresql/primary-entrypoint.sh:ro
+    networks:
+      - yoga-network
+
+  postgres-search-slave:
+    image: postgis/postgis:15-3.4-alpine
+    container_name: yoga-postgres-search-slave
+    depends_on:
+      - postgres-search
+    entrypoint: ["/bin/bash", "/etc/postgresql/replica-entrypoint.sh"]
+    ports:
+      - "5440:5432"
+    environment:
+      POSTGRES_USER: search
+      POSTGRES_PASSWORD: search
+      POSTGRES_DB: search
+      PG_PRIMARY_HOST: postgres-search
+      PG_PRIMARY_PORT: 5432
+      PG_PRIMARY_USER: search
+      PG_PRIMARY_PASSWORD: search
+    volumes:
+      - postgres-search-slave-data:/var/lib/postgresql/data
+      - ./docker/postgres/search/slave/replica-entrypoint.sh:/etc/postgresql/replica-entrypoint.sh:ro
     networks:
       - yoga-network
 
@@ -179,5 +207,7 @@ volumes:
   postgres-media-data:
   postgres-location-data:
   postgres-sessions-data:
-  postgres-sessions-slave-data:
+  postgres-reservations-data:
+  postgres-search-data:
+  postgres-search-slave-data:
   redis-data:

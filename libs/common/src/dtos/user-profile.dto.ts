@@ -1,5 +1,5 @@
 import {  Type } from 'class-transformer';
-import { IsDate, IsEmail, IsString, IsUUID } from 'class-validator';
+import { IsDate, IsEmail, IsPhoneNumber, IsString, IsUUID } from 'class-validator';
 
 export class UserProfileDto {
   @IsUUID()
@@ -11,6 +11,9 @@ export class UserProfileDto {
   @IsString()
   name: string;
   
+  @IsPhoneNumber('EG')
+  phoneNumber: string;
+
   @IsDate()
   @Type(() => Date)
   createdAt: Date;

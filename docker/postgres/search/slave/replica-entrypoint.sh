@@ -1,10 +1,10 @@
 #!/bin/bash
 set -euo pipefail
 
-PRIMARY_HOST="${PG_PRIMARY_HOST:-postgres-sessions}"
+PRIMARY_HOST="${PG_PRIMARY_HOST:-postgres-search}"
 PRIMARY_PORT="${PG_PRIMARY_PORT:-5432}"
-PRIMARY_USER="${PG_PRIMARY_USER:-sessions}"
-PRIMARY_PASSWORD="${PG_PRIMARY_PASSWORD:-sessions}"
+PRIMARY_USER="${PG_PRIMARY_USER:-search}"
+PRIMARY_PASSWORD="${PG_PRIMARY_PASSWORD:-search}"
 
 if [ ! -f "$PGDATA/standby.signal" ]; then
   echo "Initializing standby from ${PRIMARY_HOST}:${PRIMARY_PORT}..."

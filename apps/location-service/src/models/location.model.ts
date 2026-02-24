@@ -1,11 +1,7 @@
 import { OwnerType } from "@app/common/types/owners.types";
 import { AbstractEntity } from "@app/database/database.entity";
-import { Column, Entity, Index, JoinColumn, OneToOne, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
+import { Column, Entity, type Geometry, Index, JoinColumn, OneToOne, PrimaryColumn, PrimaryGeneratedColumn } from "typeorm";
 
-export interface Geometry {
-    type: "Point"
-    coordinates: [number, number] // [longitude, latitude]
-}
 
 @Index(["ownerType", "ownerId"])
 
