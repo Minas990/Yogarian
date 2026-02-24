@@ -10,7 +10,7 @@ import { Session } from '../models/session.model';
 import { SessionStatus } from '../types/sessions-status.type';
 import { randomUUID } from 'crypto';
 import { In } from 'typeorm';
-import { CreateLocationRequest, LOCATION_SERVICE_NAME, LocationServiceClient, UpdateLocationRequest } from '@app/common/generated/location';
+import { CreateLocationRequest, LOCATION_SERVICE_NAME, type LocationServiceClient, UpdateLocationRequest } from '@app/common/generated/location';
 import { firstValueFrom } from 'rxjs';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class SessionsService implements OnModuleInit {
     private readonly sessionsRepository: SessionsRepository,
     @Inject(KAFKA_SERVICE) private readonly kafka: ClientKafka,
     private readonly appLogger: AppLoggerService,
-    @Inject(LOCATION_SERVICE_NAME) private readonly locationGrpcClient: ClientGrpc,
+    @Inject(LOCATION_SERVICE_NAME) private readonly locationGrpcClient: LocationServiceClient,
   ) {}
 
   async onModuleInit() {
@@ -52,8 +52,8 @@ export class SessionsService implements OnModuleInit {
       createdAt: createdSession.createdAt.toISOString(), 
     };
 
-    const locationService = this.locationGrpcClient.getService<LocationServiceClient>('LocationService');
-    const locationResult =await firstValueFrom(locationService.createLocation({...locationPayload}));
+
+    const locationResult = await firstValueFrom(this.locationGrpcClient.createLocation({...locationPayload}));
 
     if (!locationResult.success) {
       await this.sessionsRepository.findOneAndDelete({ id: createdSession.id });
@@ -131,8 +131,7 @@ export class SessionsService implements OnModuleInit {
         ownerId: id,
         ...location,
       };
-      const locationService = this.locationGrpcClient.getService<LocationServiceClient>('LocationService');
-      const locationResult = await firstValueFrom(locationService.updateLocation({...locationPayload}));
+      const locationResult = await firstValueFrom(this.locationGrpcClient.updateLocation({...locationPayload}));
       if (!locationResult.success) {
         throw new BadRequestException('Location update failed: ' + locationResult.error);
       }

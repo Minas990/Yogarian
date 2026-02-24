@@ -26,4 +26,6 @@ making new session:
         api-gateway send the request to session service , session created with status of location_pending and the response returned to user 
         session service emit session_created event , location listen to to and make the entity then emit location created back to the session 
         front-end either pooling or there will be a websocket : ill come to that later 
-        either the status will be failed or upcoming; 
+        either the status will be failed or upcoming; //updated 
+//now composing a session is done with grpc 
+also ill introduce a cqrs model soon with the search services
