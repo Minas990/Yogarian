@@ -86,15 +86,6 @@
         ]
       }
     },
-    "payment-orchestrator": {
-      "type": "application",
-      "root": "apps/payment-orchestrator",
-      "entryFile": "main",
-      "sourceRoot": "apps/payment-orchestrator/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/payment-orchestrator/tsconfig.app.json"
-      }
-    },
     "payments-service": {
       "type": "application",
       "root": "apps/payments-service",
@@ -102,15 +93,6 @@
       "sourceRoot": "apps/payments-service/src",
       "compilerOptions": {
         "tsConfigPath": "apps/payments-service/tsconfig.app.json"
-      }
-    },
-    "report-service": {
-      "type": "application",
-      "root": "apps/report-service",
-      "entryFile": "main",
-      "sourceRoot": "apps/report-service/src",
-      "compilerOptions": {
-        "tsConfigPath": "apps/report-service/tsconfig.app.json"
       }
     },
     "reservations-service": {
