@@ -1,14 +1,16 @@
-import { Controller, Get } from '@nestjs/common';
+import { BadRequestException, Controller, Get, Param, ParseUUIDPipe, Query, UseGuards } from '@nestjs/common';
 import { SearchServiceService } from './search-service.service';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
-import { SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent } from '@app/common';
+import { CurrentUser, JwtAuthGuard, Roles, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent,type UserTokenPayload } from '@app/common';
 import { UserProfileUpdatedEvent } from '@app/common/events/user-profile-updated.event';
 import { UserFollowEvent } from '@app/common/events/user-follow.event';
 import { UserImageProfile } from '@app/common/events/user-image';
 import { DeleteLocationUserEvent, LocationUserEvent, UpdateLocationUserEvent } from '@app/common/events/location-user.event';
+import { FindSessionsDto } from './types/find-sessions.type';
+import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 
-@Controller()
+@Controller('search')
 export class SearchServiceController {
   constructor(private readonly searchServiceService: SearchServiceService) {}
 
@@ -89,13 +91,13 @@ export class SearchServiceController {
   @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
   async handleSessionCreated(@Payload() data: SessionCreatedEvent)
   {
-    return this.searchServiceService.handleSessionCreated(data);
+    await this.searchServiceService.handleSessionCreated(data).catch((err) => console.log('Failed to index session in search service',err));
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_UPDATED)
   async handleSessionUpdated(@Payload() data: SessionUpdatedEvent)
   {
-    return this.searchServiceService.handleSessionUpdated(data);
+    return this.searchServiceService.handleSessionUpdated(data).catch((err) => console.log('Failed to update session in search service',err));
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_DELETED)
@@ -116,5 +118,71 @@ export class SearchServiceController {
   {
     return this.searchServiceService.handleSessionImagesDeletionApproved(data);
   }
+
+  @UseGuards(LongThrottleGuard)
+  @Get('sessions')
+  async getAllSessions(@Query() query:FindSessionsDto)
+  {
+    return this.searchServiceService.findSessions(query);
+  }
+
+  @UseGuards(LongThrottleGuard,JwtAuthGuard)
+  @Get('me')
+  async getMe(@CurrentUser() user:UserTokenPayload)
+  {
+    return this.searchServiceService.getMe(user.userId);
+  }
+
+  @UseGuards(LongThrottleGuard,JwtAuthGuard)
+  @Get('sessions/me')
+  async getMySessions(@CurrentUser() user:UserTokenPayload,@Query('limit') limit:number,@Query('page') page:number) 
+  {
+    if(!limit ||  limit <=0 || page <0)
+      throw new BadRequestException('Limit and page must be positive integers');
+    if(user.role == Roles.TRAINER)//for a trainer we return all his sessions 
+    {
+      return this.searchServiceService.getMySessionsTrainer(user.userId,limit,page);
+    }
+    else //for a user we return only the sessions he participated in 
+    {
+      return this.searchServiceService.getMySessionsUser(user.userId,limit,page);
+    }
+  }
+
+  @UseGuards(LongThrottleGuard,JwtAuthGuard)
+  @Get('followers')
+  async getMyFollowers(@CurrentUser() user:UserTokenPayload,@Query('limit') limit:number,@Query('page') page:number)
+  {
+    if(!limit ||  limit <=0 || page <0)
+      throw new BadRequestException('Limit and page must be positive integers');
+    return this.searchServiceService.getFollowers(user.userId,limit,page);
+  }
+
+  @UseGuards(LongThrottleGuard,JwtAuthGuard)
+  @Get('following')//only user can see who he follows
+  async getMyFollowing(@CurrentUser() user:UserTokenPayload,@Query('limit') limit:number,@Query('page') page:number)
+  {
+    if(!limit ||  limit <=0 || page <0)
+      throw new BadRequestException('Limit and page must be positive integers');
+    return this.searchServiceService.getFollowing(user.userId,limit,page);
+  }
+
+  @UseGuards(MediumThrottleGuard,JwtAuthGuard)
+  @Get('follower/:id')//any user can see the followers of any trainer 
+  async getUserFollowers(@Param('id',ParseUUIDPipe) id:string,@Query('limit') limit:number,@Query('page') page:number)
+  {
+    if(!limit ||  limit <=0 || page <0)
+      throw new BadRequestException('Limit and page must be positive integers');
+    return this.searchServiceService.getFollowers(id,limit,page);
+  }
+
+
+  @UseGuards(LongThrottleGuard,JwtAuthGuard)
+  @Get('trainer/:id')
+  async getUserById(@CurrentUser() user:UserTokenPayload,@Param('id',ParseUUIDPipe) id:string)
+  {
+    return this.searchServiceService.getTrainerById(id);
+  }
+
 
 }

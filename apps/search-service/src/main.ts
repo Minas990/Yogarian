@@ -4,6 +4,7 @@ import { ConfigService } from '@nestjs/config';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { KAFKA_BROKER } from '@app/kafka';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(SearchServiceModule);
@@ -22,6 +23,10 @@ async function bootstrap() {
     }
   });
   await app.startAllMicroservices();
-  await app.listen(process.env.port ?? 3000);
+  app.useGlobalPipes(new ValidationPipe({
+    whitelist: true,
+    transform: true,
+  }));
+  await app.listen(configService.get('SEARCH_PORT') || 8009);
 }
 bootstrap();

@@ -12,25 +12,28 @@ import { Photo } from "./photos.model";
 @Index('idx_session_status', ['status'])
 @Index('idx_session_startTime', ['startTime'])
 @Index('idx_session_price', ['price'])
+@Index('idx_session_maxParticipants', ['maxParticipants'])
+@Index('idx_session_duation', ['duration'])
+@Index('idx_session_governorate', ['governorate'])
+@Index('idx_session_createdAt_sessionId', ['createdAt', 'sessionId'])
 export class Session 
 {
     @PrimaryColumn('uuid')
     sessionId: string;
-    @Column('uuid')
     @JoinColumn({name:'userId'})
-    @ManyToOne(() => User, user => user.userId, { onDelete: 'CASCADE',eager:false })
+    @ManyToOne(() => User, user => user.userId, { onDelete: 'NO ACTION',eager:false }) // there will be an event called when a user is deleted and this event will call delete session event to delete all sessions of the user
     user : User;
     @Column('uuid')
-    userId: string;//the fk to the user who created the session
+    userId: string;//the fk of the user who created the session
 
     @Column()
     address: string;
     @Column()
     governorate: string;
     @Column()
-    longitude: number
+    longitude: string
     @Column()
-    latitude: number
+    latitude: string
     @Column()
     title: string;
     @Column()

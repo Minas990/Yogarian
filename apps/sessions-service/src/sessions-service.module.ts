@@ -11,7 +11,6 @@ import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guar
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Session } from './models/session.model';
-import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { LOCATION_PACKAGE_NAME, LOCATION_SERVICE_NAME } from '@app/common/generated/location';
 

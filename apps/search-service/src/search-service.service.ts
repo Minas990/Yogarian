@@ -11,6 +11,8 @@ import { Follow } from './models/follow.model';
 import { UserImageProfile } from '@app/common/events/user-image';
 import { DeleteLocationUserEvent, LocationUserEvent, UpdateLocationUserEvent } from '@app/common/events/location-user.event';
 import { Photo } from './models/photos.model';
+import { FindSessionsDto } from './types/find-sessions.type';
+import { SessionStatus } from 'apps/sessions-service/src/types/sessions-status.type';
 
 @Injectable()
 export class SearchServiceService implements OnModuleInit {
@@ -84,6 +86,8 @@ export class SearchServiceService implements OnModuleInit {
       createdAt: data.createdAt,
     });
     await this.followRepo.save(follow);
+    await this.userRepo.increment({ userId: data.followingId }, 'followersCount', 1);
+    await this.userRepo.increment({ userId: data.followerId }, 'followingCount', 1);
     this.appLogger.logInfo({
       functionName: 'handleUserFollowEvent',
       message: `User with userId: ${data.followerId} followed user with userId: ${data.followingId} indexed in search service successfully`,
@@ -94,6 +98,9 @@ export class SearchServiceService implements OnModuleInit {
   async handleUserUnfollowEvent(data: UserFollowEvent)
   {
     await this.followRepo.delete({followerId: data.followerId, followingId: data.followingId});
+    await this.userRepo.decrement({ userId: data.followingId }, 'followersCount', 1);
+    await this.userRepo.decrement({ userId: data.followerId }, 'followingCount', 1);
+    
     this.appLogger.logInfo({
       functionName: 'handleUserUnfollowEvent',
       message: `User with userId: ${data.followerId} unfollowed user with userId: ${data.followingId} deleted from search service successfully`,
@@ -113,7 +120,7 @@ export class SearchServiceService implements OnModuleInit {
   
   async handleImageUserProfileDeleted(data: UserImageProfile)
   {
-    return this.userRepo.update({userId: data.userId},{profilePictureUrl: undefined});
+    return this.userRepo.update({userId: data.userId},{profilePictureUrl: null as any});
   }
 
   async handleLocationUserCreated(data: LocationUserEvent)
@@ -130,8 +137,8 @@ export class SearchServiceService implements OnModuleInit {
     }
     user.address = data.address;
     user.governorate = data.governorate;
-    user.latitude = data.latitude;
-    user.longitude = data.longitude;
+    user.latitude = data.latitude.toString();
+    user.longitude = data.longitude.toString();
     const point : Geometry = {
       type: 'Point',
       coordinates: [data.longitude, data.latitude]
@@ -198,8 +205,13 @@ export class SearchServiceService implements OnModuleInit {
     }
     await this.sessionRepo.save({
       ...data,
+      longitude: data.longitude.toString(),
+      latitude: data.latitude.toString(),
       currentParticipants: 0,
       point: point,
+      status:SessionStatus.UPCOMING,
+      sessionId:data.sessionId,
+      userId:data.userId
     });
     this.appLogger.logInfo({
       functionName: 'handleSessionCreated',
@@ -218,7 +230,7 @@ export class SearchServiceService implements OnModuleInit {
         coordinates: [data.longitude, data.latitude]
       }
     }
-    await this.sessionRepo.update({sessionId: data.sessionId}, {...data, point});
+    await this.sessionRepo.update({sessionId: data.sessionId}, {...data,longitude: data.longitude?.toString(), latitude: data.latitude?.toString(), point});
   }
 
   async handleSessionDeleted(data: SessionDeletedEvent)
@@ -265,4 +277,203 @@ export class SearchServiceService implements OnModuleInit {
     session.photos = session.photos?.filter(photo => !data.photoIds.includes(photo.id));
     await this.sessionRepo.save(session);
   }
+
+  async findSessions(query: FindSessionsDto) 
+  {
+    const qb = this.sessionRepo.createQueryBuilder('session');
+    if(query.oldSessions)
+        qb.where('session.status IN (:...statuses)', { statuses: [SessionStatus.UPCOMING, SessionStatus.COMPLETED] });
+    else 
+        qb.where('session.status = :status', { status: SessionStatus.UPCOMING }).andWhere('session.currentParticipants < session.maxParticipants');
+
+    if (query.governorate)
+        qb.andWhere('session.governorate = :governorate', { governorate: query.governorate });
+
+    if (query.minDuration != null)
+        qb.andWhere('session.duration >= :minDuration', { minDuration: query.minDuration });
+
+    if (query.maxDuration != null)
+        qb.andWhere('session.duration <= :maxDuration', { maxDuration: query.maxDuration });
+
+    if (query.minPrice != null)
+        qb.andWhere('session.price >= :minPrice', { minPrice: query.minPrice });
+
+    if (query.maxPrice != null)
+        qb.andWhere('session.price <= :maxPrice', { maxPrice: query.maxPrice });
+
+    if (query.latitude != null && query.longitude != null && query.radius != null) {
+        qb.andWhere(
+            `ST_DWithin(
+                session.point::geography,
+                ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
+                :radius
+            )`,
+            { longitude: query.longitude, latitude: query.latitude, radius: query.radius }
+        );
+    }
+
+    if (query.trainerId)
+        qb.andWhere('session.userId = :trainerId', { trainerId: query.trainerId });
+
+    if (query.minStartTime)
+        qb.andWhere('session.startTime >= :minStartTime', { minStartTime: query.minStartTime });
+
+    if (query.maxParticipants)
+        qb.andWhere('session.maxParticipants <= :maxParticipants', { maxParticipants: query.maxParticipants });
+    if (query.cursor) //cursor format: createdAt__sessionId
+    {
+        const [cursorDate, cursorId] = query.cursor.split('__');
+        qb.andWhere(
+            '(session.createdAt < :cursorDate OR (session.createdAt = :cursorDate AND session.sessionId < :cursorId))',
+            { cursorDate: new Date(cursorDate), cursorId }
+        );
+    }
+    const limit = Math.min(query.limit ?? 20, 100);
+
+    const sessions = await qb
+        .orderBy('session.createdAt', 'DESC')
+        .addOrderBy('session.sessionId', 'DESC')
+        .take(limit+1)
+        .getMany();
+      
+    const hasNextPage = sessions.length > limit; 
+    if(hasNextPage) sessions.pop(); //remove the extra session used to check if there is a next page
+
+    const nextCursor = hasNextPage
+        ? `${sessions[sessions.length - 1].createdAt.toISOString()}__${sessions[sessions.length - 1].sessionId}`
+        : null;
+        
+    return {
+        data: sessions,
+        nextCursor,
+        limit,
+        hasNextPage
+    };
+  }
+
+  async getMe(userId: string)
+  {
+    const user = await this.userRepo.findOne({where:{userId}});
+    return user;
+  }
+
+  async getMySessionsUser(userId: string, limit: number, page: number = 0) {
+      const qb = this.reservationRepo
+          .createQueryBuilder('reservation')
+          .innerJoin('reservation.session', 'session')
+          .where('reservation.userId = :userId', { userId })
+          .select([
+              'reservation.locked_price AS reservation_price',  
+              'reservation.createdAt AS reservation_createdAt',
+              'session.startTime AS session_startTime',
+              'session.duration AS session_duration',
+              'session.title AS session_title',
+              'session.description AS session_description',
+          ])
+          .skip(page * limit)
+          .take(limit);
+
+      const [rows, total] = await Promise.all([
+          qb.getRawMany(),
+          qb.getCount(),
+      ]);
+
+      return {
+          data: rows.map(r => ({
+              price: r.reservation_price,
+              reservedAt: r.reservation_createdAt,
+              session: {
+                  startTime: r.session_startTime,
+                  duration: r.session_duration,
+                  title: r.session_title,
+                  description: r.session_description,
+              }
+          })),
+          total,
+          page,
+          limit
+      };
+  }
+
+  async getMySessionsTrainer(userId: string, limit: number, page: number = 0)
+  {
+    const qb = this.sessionRepo.createQueryBuilder('session');
+    qb.where('session.userId = :userId', { userId });
+    qb.skip(page * limit).take(limit);
+    const [sessions, total] = await qb.getManyAndCount();
+    return {
+      data: sessions,
+      total,
+      page,
+      limit
+    };
+  }
+
+async getFollowers(userId: string, limit :number, page :number = 0) 
+{
+    const qb = this.followRepo
+        .createQueryBuilder('follow')
+        .innerJoin('follow.follower', 'follower')
+        .where('follow.followingId = :userId', { userId })
+        .select([
+            'follower.userId AS userId',
+            'follower.name AS name',
+            'follower.profilePictureUrl AS profilePictureUrl',
+        ])
+        .skip(page * limit)
+        .take(limit);
+
+    const [rows, total] = await Promise.all([
+        qb.getRawMany(),
+        qb.getCount(),
+    ]);
+
+    return {
+        data: rows,
+        total,
+        page,
+        limit,
+    };
+  }
+
+  async getFollowing(userId: string, limit:number, page :number = 0) //the people i follow 
+  {
+    const qb = this.followRepo
+        .createQueryBuilder('follow')
+        .innerJoin('follow.following', 'following')
+        .where('follow.followerId = :userId', { userId })
+        .select([
+            'following.userId AS userId',
+            'following.name AS name',
+            'following.profilePictureUrl AS profilePictureUrl',
+        ])
+        .skip(page * limit)
+        .take(limit);
+
+    const [rows, total] = await Promise.all([
+        qb.getRawMany(),
+        qb.getCount(),
+    ]);
+
+    return {
+        data: rows,
+        total,
+        page,
+        limit,
+    };
+  }
+
+  async getTrainerById(id: string)
+  {
+    const user = await this.userRepo.findOne({where:{userId: id},select:{
+      userId: true,
+      name: true,
+      followersCount: true,
+      profilePictureUrl: true,
+      createdAt: true,
+    }});
+    return user;
+  }
+
+
 }

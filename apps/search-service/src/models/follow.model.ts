@@ -9,10 +9,10 @@ export class Follow
     @PrimaryColumn('uuid')
     followingId: string;
     @JoinColumn({name: 'followerId'})
-    @ManyToOne(() => User, user => user.following)
+    @ManyToOne(() => User, user => user.following,{onDelete: 'CASCADE'})
     follower: User
     @JoinColumn({name: 'followingId'})
-    @ManyToOne(() => User, user => user.followers)
+    @ManyToOne(() => User, user => user.followers,{onDelete: 'CASCADE'})
     following: User
     @Column()
     createdAt: Date;

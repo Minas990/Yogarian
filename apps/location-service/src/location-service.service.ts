@@ -7,7 +7,7 @@ import { CreateLocationDto } from "./dto/create-location.dto";
 import {  Location } from "./models/location.model";
 import { OwnerType } from "@app/common/types/owners.types";
 import { UpdateLocationDto } from "./dto/update-location.dto";
-import { CreateLocationRequest, UpdateLocationRequest, UpdateLocationResponse } from "@app/common/generated/location";
+import { CreateLocationRequest, CreateLocationResponse, UpdateLocationRequest, UpdateLocationResponse } from "@app/common/generated/location";
 import { LocationUserEvent } from "@app/common/events/location-user.event";
 import { Geometry } from "typeorm";
 
@@ -102,7 +102,13 @@ export class LocationService implements OnModuleInit {
             },
             createdAt: new Date(createLocation.createdAt)
         })
-        return this.locationRepo.create(location);
+        const result = await this.locationRepo.create(location);
+        return {   
+            address: result.address,
+            governorate: result.governorate,
+            latitude: createLocation.latitude,
+            longitude: createLocation.longitude,
+        }
     }
     async handleSessionDeleted(sessionId: string) {
         this.logger.logInfo({
@@ -140,11 +146,17 @@ export class LocationService implements OnModuleInit {
                 coordinates: [data.longitude, data.latitude]
             };
         point = point ?? location.point;
-        return this.locationRepo.findOneAndUpdate({ownerId:data.ownerId,ownerType: OwnerType.SESSION},{
+        const result = await this.locationRepo.findOneAndUpdate({ownerId:data.ownerId,ownerType: OwnerType.SESSION},{
             address: data.address,
             governorate: data.governorate,
             point
         });
+        return {
+            address: result.address,
+            governorate: result.governorate,
+            latitude: data.latitude,
+            longitude: data.longitude,
+        }
     }
 
 }

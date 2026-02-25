@@ -23,9 +23,9 @@ export class User
     @Column({nullable:true})
     phoneNumber: string;
     @Column({nullable:true})
-    longitude: number;
+    longitude: string;
     @Column({nullable:true})
-    latitude: number;
+    latitude: string;
     @Column({nullable:true})
     profilePictureUrl: string;
     @Column("geography",{nullable:true,spatialFeatureType:"Point",srid:4326})
@@ -44,7 +44,13 @@ export class User
     following: User[];
     @Column()
     createdAt: Date;
-    
+        
+    @Column({ default: 0 })//for trainer
+    followersCount: number;
+
+    @Column({ default: 0 }) // for user
+    followingCount: number;
+    //i made those bcs of the slow count(*)
     constructor(entity?: Partial<User>) {
         Object.assign(this, entity);
     }

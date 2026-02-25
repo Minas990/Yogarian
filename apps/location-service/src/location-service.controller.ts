@@ -68,8 +68,8 @@ export class LocationServiceController {
   @GrpcMethod(LOCATION_SERVICE_NAME, 'UpdateLocation')
   async grpcUpdateLocation(data: UpdateLocationRequest) {
     try {
-      await this.locationService.handleSessionUpdated(data);
-      return { success: true };
+      const result = await this.locationService.handleSessionUpdated(data);
+      return { success: true, ...result };
     } catch (error) {
       return { success: false, error: error.message };
     }

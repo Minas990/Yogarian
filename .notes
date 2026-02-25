@@ -29,3 +29,6 @@ making new session:
         either the status will be failed or upcoming; //updated 
 //now composing a session is done with grpc 
 also ill introduce a cqrs model soon with the search services
+
+th\e current models in search service is not deserialized 
+for testing purposes i made like this soon ill change 

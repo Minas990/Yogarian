@@ -8,6 +8,8 @@ export class RequestLoggerInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const request = context.switchToHttp().getRequest<Request>();
+
+    console.log(request.user);
     
     const { ip, method, path } = request;
     const userId = (request.user as any)?.userId || (request.user as any)?.id;

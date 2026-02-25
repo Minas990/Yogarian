@@ -17,11 +17,13 @@ export class SessionsService implements OnModuleInit {
     private readonly sessionsRepository: SessionsRepository,
     @Inject(KAFKA_SERVICE) private readonly kafka: ClientKafka,
     private readonly appLogger: AppLoggerService,
-    @Inject(LOCATION_SERVICE_NAME) private readonly locationGrpcClient: LocationServiceClient,
-  ) {}
+@Inject(LOCATION_SERVICE_NAME) private readonly locationGrpcClient: ClientGrpc,  ) {}
+
+  private locationService: LocationServiceClient;
 
   async onModuleInit() {
     await this.kafka.connect();
+    this.locationService = this.locationGrpcClient.getService<LocationServiceClient>('LocationService');
   }
 
   async create(userId: string, createSessionDto: CreateSessionDto): Promise<Session> {
@@ -48,31 +50,31 @@ export class SessionsService implements OnModuleInit {
       latitude: createSessionDto.location.latitude,
       longitude: createSessionDto.location.longitude,
       createdAt: createdSession.createdAt.toISOString(), 
+      governorate: createSessionDto.location.governorate,
     };
-
-
-    const locationResult = await firstValueFrom(this.locationGrpcClient.createLocation({...locationPayload}));
-
+    const locationResult = await firstValueFrom(this.locationService.createLocation({...locationPayload}));
     if (!locationResult.success) {
       await this.sessionsRepository.findOneAndDelete({ id: createdSession.id });
       throw new BadRequestException('Location creation failed: ' + locationResult.error);
     }
-
     this.appLogger.logInfo({
       functionName: 'create',
       message: `Session and location created with id: ${createdSession.id}`,
       userId: userId,
       additionalData: { sessionId: createdSession.id },
     });
-
+    
     session.status = SessionStatus.UPCOMING;
-    const result =  this.sessionsRepository.create(session);
-
-    this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, new SessionCreatedEvent({
-      ...result,
-      ...locationResult
-
-    }));
+    const result = await this.sessionsRepository.create(session); 
+    
+    const event = new SessionCreatedEvent({...result});
+    event.latitude = locationResult.latitude;
+    event.longitude = locationResult.longitude;
+    event.governorate = locationResult.governorate;
+    event.address = locationResult.address;
+    event.sessionId = result.id;
+    event.userId = result.trainerId;
+    this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, event);
     return result;
   }
 
@@ -108,14 +110,14 @@ export class SessionsService implements OnModuleInit {
     Object.assign(session,updateData);
     const updatedSession = await this.sessionsRepository.create(session);
     const event = new SessionUpdatedEvent({
-      ...updatedSession
-    })
+      ...updateData
+    });
     if (location) {
       const locationPayload:UpdateLocationRequest = {
         ownerId: id,
         ...location,
       };
-      const locationResult = await firstValueFrom(this.locationGrpcClient.updateLocation({...locationPayload}));
+      const locationResult = await firstValueFrom(this.locationService.updateLocation({...locationPayload}));
       if (!locationResult.success) {
         throw new BadRequestException('Location update failed: ' + locationResult.error);
       }
@@ -125,8 +127,11 @@ export class SessionsService implements OnModuleInit {
         userId: userId,
         additionalData: { sessionId: id },
       });
+      
+      locationResult.success=undefined as any;
       Object.assign(event,locationResult);
     }
+    event.sessionId = session.id;
     this.kafka.emit(KAFKA_TOPICS.SESSION_UPDATED, event);
     return updatedSession;
   }
@@ -155,24 +160,6 @@ export class SessionsService implements OnModuleInit {
     return { message: 'Session deleted successfully' };
   }
 
-  async updateSessionSessionStatus(sessionId: string,status: SessionStatus)
-  {
-
-    try {          
-    await this.sessionsRepository.findOneAndUpdate({id: sessionId}, {status});
-    this.appLogger.logInfo({
-      functionName: 'updateSessionSessionStatus',
-      message: `Updated session with id: ${sessionId} to status: ${status}`,
-    });
-    } catch (err) {
-      this.appLogger.logError({
-        functionName: 'updateSessionSessionStatus',
-        problem: `Failed to update session status for sessionId: ${sessionId} to status: ${status}: ${err.message}`,
-        error: err,
-      });
-    }
-
-  }
 
   async handleUserDeleted(userId: string) {
     this.appLogger.logInfo({

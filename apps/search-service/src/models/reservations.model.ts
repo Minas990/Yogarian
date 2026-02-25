@@ -9,12 +9,12 @@ import { ReservationStatus } from "apps/reservations-service/src/types/reservati
 @Index('idx_reservation_price', ['locked_price'])
 @Index('idx_startedAt', ['createdAt'])
 export class Reservation {
-    @ManyToOne(() => Session, session => session.reservations, { eager: true, onDelete: 'CASCADE' })
+    @ManyToOne(() => Session, session => session.reservations, { eager: true, onDelete: 'NO ACTION' })//soft 
     @JoinColumn({ name: 'sessionId' })
     session: Session;
     @PrimaryColumn('uuid')
     sessionId: string;
-    @ManyToOne(() => User, user => user.reservations, { eager: false, onDelete: 'CASCADE' })
+    @ManyToOne(() => User, user => user.reservations, { eager: false, onDelete: 'NO ACTION' })//there will be an event for that 
     @JoinColumn({ name: 'userId' })
     user: User;
     @PrimaryColumn('uuid')

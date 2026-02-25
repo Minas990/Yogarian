@@ -3,7 +3,7 @@ import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { JwtAuthGuard } from '@app/common/auth/guards/jwt-auth.guard';
 import { CurrentUser } from '@app/common/auth/decorators/current-user.decorator';
-import { type UserTokenPayload, UserRegisteredEvent, UserImageUpdatedEvent, UserEmailUpdatedEvent, UserDeletedEvent, EmailConfirmedGuard, SessionCreatedEvent, SessionCreatedLocationEvent, Roles, RolesDecorator } from '@app/common';
+import { type UserTokenPayload, UserRegisteredEvent, UserEmailUpdatedEvent, UserDeletedEvent, EmailConfirmedGuard,  Roles, RolesDecorator } from '@app/common';
 import { UsersService } from './services/users-service.service';
 import { FollowService } from './services/follow-serivice.service';
 import { UpdateUserDto } from './dtos/update-user.dto';

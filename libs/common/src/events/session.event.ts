@@ -26,6 +26,7 @@ export class SessionCreatedEvent
 export class SessionUpdatedEvent extends PartialType(SessionCreatedEvent) {
     constructor(partial: Partial<SessionUpdatedEvent>) {
         super(partial);
+        Object.assign(this,partial)
     }
 }
 
