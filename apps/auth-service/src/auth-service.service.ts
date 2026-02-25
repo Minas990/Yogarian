@@ -62,6 +62,8 @@ export class AuthService implements OnModuleInit
       email: result.email,
       name: createUserDto.name,
       createdAt: result.createdAt,
+      phoneNumber: createUserDto.phoneNumber,
+      role: result.role,
     });
 
     this.kafka.emit<UserRegisteredEvent>(KAFKA_TOPICS.USER_REGISTERED,event);

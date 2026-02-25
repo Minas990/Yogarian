@@ -1,11 +1,11 @@
-import { type Geometry, Roles } from "@app/common";
-import { Column, Entity, Index, OneToMany, PrimaryColumn } from "typeorm";
+import { Roles } from "@app/common";
+import { Column, Entity, type Geometry, Index, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
 import { Session } from "./session.model";
 import { Reservation } from "./reservations.model";
+import { Follow } from "./follow.model";
 
 @Entity()
 @Index('idx_user_email', ['email'])
-@Index('idx_user_confirmed_email', ['isEmailConfirmed','createdAt'])
 export class User 
 {
     @PrimaryColumn('uuid')
@@ -16,10 +16,10 @@ export class User
     name: string
     @Column({type:'enum', enum: Roles})
     role: Roles;
-    @Column({type:'boolean'})
-    isEmailConfirmed: boolean;
     @Column({nullable:true})
     address: string;
+    @Column({nullable:true})
+    governorate: string;
     @Column({nullable:true})
     phoneNumber: string;
     @Column({nullable:true})
@@ -30,7 +30,7 @@ export class User
     profilePictureUrl: string;
     @Column("geography",{nullable:true,spatialFeatureType:"Point",srid:4326})
     @Index({ spatial: true })
-    point: Geometry
+    point: Geometry;
 
     @OneToMany(() => Session, session => session.userId,{eager:false})
     sessions: Session[];
@@ -38,6 +38,10 @@ export class User
     @OneToMany(() => Reservation, reservation => reservation.userId,{eager:false})
     reservations: Reservation[];
 
+    @OneToMany(() => Follow, follow => follow.following,{eager:false})
+    followers: User[];
+    @OneToMany(() => Follow, follow => follow.follower,{eager:false})
+    following: User[];
     @Column()
     createdAt: Date;
     

@@ -150,7 +150,9 @@ export class MediaServiceController {
       functionName:'handleSessionImageRejectedEvent',
       additionalData: {
         sessionId: event.sessionId,
-        photoIds: event.photoIds
+        photoIds: event.photoIds,
+        problem: event.problem,
+        userId: event.userId
       }
     });
     return this.mediaServiceService.deleteSessionImages(event.sessionId,event.photoIds,PhotoStatus.PENDING).then(()=>{
@@ -183,7 +185,8 @@ export class MediaServiceController {
       functionName:'handleSessionImageDeletionApprovedEvent',
       additionalData: {
         sessionId: event.sessionId,
-        photoIds: event.photoIds
+        photoIds: event.photoIds,
+        userId: event.userId
       }
     });
     return this.mediaServiceService.deleteSessionImages(event.sessionId,event.photoIds).then(()=>{
@@ -218,7 +221,8 @@ export class MediaServiceController {
       additionalData: {
         sessionId: event.sessionId,
         photoIds: event.photoIds,
-        userId: event.userId // the bad guy 
+        userId: event.userId ,// the bad guy maybe 
+        problem: event.problem // the reason of rejection provided by the sessions service, can be used for monitoring and analytics to detect potential issues or bad actors in the system
       }
     });
   }

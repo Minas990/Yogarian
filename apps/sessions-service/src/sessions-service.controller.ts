@@ -6,7 +6,6 @@ import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
-import { GetSessionQueryDto } from './dto/get-session-query.dto';
 
 @Controller('sessions')
 export class SessionsServiceController {
@@ -21,13 +20,6 @@ export class SessionsServiceController {
       return this.sessionsService.create(user.userId,createSessionDto);
     }
   
-    @UseGuards(LongThrottleGuard)
-    @Get()
-    async getSessions(@Query() query : GetSessionQueryDto)
-    {
-      return this.sessionsService.getSessions(query);
-    }
-
     @UseGuards(LongThrottleGuard)
     @Get(':id')
     async getSessionById(@Param('id',ParseUUIDPipe) id: string)
@@ -59,7 +51,7 @@ export class SessionsServiceController {
     @EventPattern(KAFKA_TOPICS.IMAGES_SESSION_CREATED)
     async handleSessionImagesCreated(@Payload() event: ImagesSessionCreatedEvent)
     {
-      this.sessionsService.handleImagesCreated(event.userId,event.sessionId,event.photoIds);
+      this.sessionsService.handleImagesCreated(event.userId,event.sessionId,event.photoIds,event.urls);
     }
 
     @EventPattern(KAFKA_TOPICS.IMAGES_SESSION_DELETED)

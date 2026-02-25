@@ -23,20 +23,11 @@ export class UserController {
     await this.usersService.createUser(event);
   }
     
-
-  @UseGuards(JwtAuthGuard, LongThrottleGuard)
-  @Get('me')
-  async getMe(@CurrentUser() user : UserTokenPayload)
-  {
-    return this.usersService.getMe(user.userId);
-  }
-
-  @Get(':userId')
+  @Get(':userId')//simple get endpoint , complex ones for search service
   @UseGuards(LongThrottleGuard)
   async getUser(@Param('userId',ParseUUIDPipe) userId: string) {
     return this.usersService.getUserById(userId, ['email']);
   }
-
 
 
   @UseGuards(JwtAuthGuard,MediumThrottleGuard)
@@ -86,22 +77,5 @@ export class UserController {
     const followed = await this.usersService.getUserById(followedId);
     if(follower.userId === followed.userId) throw new BadRequestException('You cannot unfollow yourself');
     return this.followService.unfollowUser(follower.userId, followed.userId);
-  }
-
-  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
-  async handleSessionCreated(@Payload() event: SessionCreatedEvent)
-  {
-    const followers = await  this.followService.getMyFollowers(event.userId);
-    const userIds = followers.map(follow => follow.followerId);
-    this.usersService.notifyFollowersAboutNewSession(event, userIds,"A trainer you follow has just created a new session. Check it out!");
-  }
-
-  @EventPattern(KAFKA_TOPICS.NEAREST_USERS_FOUND)
-  async handleNearestUsersFound(@Payload() event: SessionCreatedLocationEvent)
-  {
-    const followers = await  this.followService.getMyFollowers(event.sessionCreatedEvent.userId);
-    const userIds = event.nearestUsersIds.filter( id => !followers.some(follow => follow.followerId === id)); //only notify non-followers if they are nearby
-    if(!userIds.length) return; //no need to notify if no nearby users or all nearby users are followers
-    return this.usersService.notifyFollowersAboutNewSession(event.sessionCreatedEvent,userIds,"A New Session has been created near you. Check it out!");
   }
 }

@@ -8,6 +8,7 @@ import { PhotoStatus } from './types/photo-status.type';
 import { In } from 'typeorm';
 import { ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
+import { UserImageProfile } from '@app/common/events/user-image';
 
 @Injectable()
 export class MediaServiceService implements OnModuleInit {
@@ -107,13 +108,16 @@ export class MediaServiceService implements OnModuleInit {
         if (existingPhoto)
             return { message: 'File already exists for the user, use update endpoint to update the file' };
 
-        return this.createPhotoRecord(
+        const result = await this.createPhotoRecord(
             OwnerType.USER,
             userId,
             file,
             this.configService.getOrThrow<string>('CLOUDINARY_USER_PHOTO_FOLDER'),
             PhotoStatus.APPROVED
         );
+        const event = new UserImageProfile(userId, result.url);
+        this.kafkaClient.emit(KAFKA_TOPICS.IMAGE_USER_PROFILE_CREATED, event);
+        return result;
     }
 
     async deleteUserFile(userId:string)
@@ -123,6 +127,7 @@ export class MediaServiceService implements OnModuleInit {
             return {message:'No file found for the user'};        
         await this.cloudinaryService.deleteFile(photo.public_id);
         await this.photoRepo.remove(photo);
+        this.kafkaClient.emit(KAFKA_TOPICS.IMAGE_USER_PROFILE_DELETED, new UserImageProfile(userId, photo.url));
         return {message:'File deleted successfully'};
     }
 
@@ -158,7 +163,7 @@ export class MediaServiceService implements OnModuleInit {
             functionName: 'updateUserFile',
             userId
         });
-
+        this.kafkaClient.emit(KAFKA_TOPICS.IMAGE_USER_PROFILE_UPDATED, new UserImageProfile(userId, updatedPhoto.url));
         return {
             message: 'File updated successfully',
             photo: updatedPhoto
@@ -213,7 +218,8 @@ export class MediaServiceService implements OnModuleInit {
                 new ImagesSessionCreatedEvent({
                     userId,
                     sessionId,
-                    photoIds: uploadResults.map((result) => result.id)
+                    photoIds: uploadResults.map((result) => result.id),
+                    urls: uploadResults.map((result) => result.url)
                 })
             );
 

@@ -6,6 +6,7 @@ import { UpdateUserDto } from '../dtos/update-user.dto';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
 import { ClientKafka } from '@nestjs/microservices';
 import { In } from 'typeorm';
+import { UserProfileUpdatedEvent } from '@app/common/events/user-profile-updated.event';
 
 
 @Injectable()
@@ -61,7 +62,10 @@ export class UsersService
 
   async updateUser(userId:string, updateUserDto:UpdateUserDto, file?: Express.Multer.File)
   {   
-    return this.UserRepo.findOneAndUpdate({ userId }, updateUserDto);
+    const result =  this.UserRepo.findOneAndUpdate({ userId }, updateUserDto);
+    const event = new UserProfileUpdatedEvent({userId,name:updateUserDto.name,phoneNumber:updateUserDto.phoneNumber});
+    this.kafkaClient.emit(KAFKA_TOPICS.USER_PROFILE_UPDATED, event);
+    return result;
   }
 
 

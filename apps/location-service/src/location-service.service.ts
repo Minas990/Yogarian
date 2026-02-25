@@ -1,13 +1,15 @@
-import { AppLoggerService, LocationCreationFailedEvent, LocationCreationSuccessEvent, LocationUpdateFailedEvent, LocationUpdateSuccessEvent, SessionCreatedEvent, SessionCreatedLocationEvent, SessionUpdatedEvent } from "@app/common";
+import { AppLoggerService } from "@app/common";
 import { KAFKA_SERVICE, KAFKA_TOPICS } from "@app/kafka";
 import { Inject, Injectable, NotFoundException, OnModuleInit } from "@nestjs/common";
 import { ClientKafka } from "@nestjs/microservices";
 import { LocationRepo } from "./repos/location.repo";
 import { CreateLocationDto } from "./dto/create-location.dto";
-import { Geometry, Location } from "./models/location.model";
+import {  Location } from "./models/location.model";
 import { OwnerType } from "@app/common/types/owners.types";
 import { UpdateLocationDto } from "./dto/update-location.dto";
 import { CreateLocationRequest, UpdateLocationRequest, UpdateLocationResponse } from "@app/common/generated/location";
+import { LocationUserEvent } from "@app/common/events/location-user.event";
+import { Geometry } from "typeorm";
 
 @Injectable()
 export class LocationService implements OnModuleInit {
@@ -36,7 +38,7 @@ export class LocationService implements OnModuleInit {
                 coordinates: [dto.longitude, dto.latitude]
             }
         });
-
+        this.kafkaService.emit(KAFKA_TOPICS.LOCATION_USER_CREATED, new LocationUserEvent({userId,...dto}))
         return this.locationRepo.create(location);
     }
 
@@ -62,11 +64,6 @@ export class LocationService implements OnModuleInit {
             ownerId: userId,
             ownerType: OwnerType.USER
         });
-    }
-
-    async getNearestSessions(latitude: number, longitude: number, radius?: number, limit?: number,page?: number )
-    {
-        return this.locationRepo.findNearestSessionsId(latitude, longitude, radius ?? 1000, page ?? 1, limit ?? 10);
     }
 
     async getSessionLocation(sessionId: string) {
@@ -149,22 +146,5 @@ export class LocationService implements OnModuleInit {
             point
         });
     }
-
-    async getNearbyUsers(event: SessionCreatedEvent)
-    {
-        const nearbyUsers = await this.locationRepo.findNearestUsers(event.latitude, event.longitude, 10000,100);//nearest 100 user that are
-        if(!nearbyUsers.length) 
-            return ;//no need to emit event if no nearby users
-
-        this.logger.logInfo({
-            functionName: 'getNearbyUsers',
-            message: `Found ${nearbyUsers.length} nearby users for session ${event.sessionId}`
-        });
-
-        
-        const eventEmit = new SessionCreatedLocationEvent(event,nearbyUsers.map(user => user.ul_ownerId));
-        this.kafkaService.emit(KAFKA_TOPICS.NEAREST_USERS_FOUND, eventEmit);
-    }
-
 
 }

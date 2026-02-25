@@ -2,7 +2,6 @@ import { GrpcMethod } from '@nestjs/microservices';
 import { CurrentUser, EmailConfirmedGuard, SessionCreatedEvent, SessionDeletedEvent, SessionUpdatedEvent, UserDeletedEvent, type UserTokenPayload } from '@app/common';
 import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
-import { NearestSessionsQueryDto } from './dto/nearest-sessions-query.dto';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { LocationService } from './location-service.service';
@@ -47,18 +46,6 @@ export class LocationServiceController {
     return { message: 'Location deleted successfully' };
   }
 
-  @UseGuards(LongThrottleGuard,EmailConfirmedGuard)
-  @Get('nearest/sessions')//we store the user location for another purpose not for finding it's nearest sessions 
-  async getNearestSessions(@CurrentUser() user : UserTokenPayload,@Query() query: NearestSessionsQueryDto )
-  {
-    return this.locationService.getNearestSessions(
-      query.latitude, 
-      query.longitude, 
-      query.radius, 
-      query.limit,
-      query.page
-    );
-  }
 
   @UseGuards(LongThrottleGuard,EmailConfirmedGuard)
   @Get('session/:sessionId')
@@ -66,7 +53,6 @@ export class LocationServiceController {
   {
     return this.locationService.getSessionLocation(sessionId);
   }
-
 
 
   @GrpcMethod(LOCATION_SERVICE_NAME, 'CreateLocation')
@@ -99,12 +85,6 @@ export class LocationServiceController {
   async handleSessionDeleted(@Payload() event: SessionDeletedEvent)
   {
     await this.locationService.handleSessionDeleted(event.sessionId);
-  }
-
-  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
-  async handleSessionCreated(@Payload() event: SessionCreatedEvent)
-  {
-    await this.locationService.getNearbyUsers(event);
   }
 
 }

@@ -1,8 +1,8 @@
-import { Column, Entity, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
+import { Column, Entity, type Geometry, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
 import { User } from "./User.entity";
 import { SessionStatus } from "apps/sessions-service/src/types/sessions-status.type";
-import { type Geometry } from "@app/common";
 import { Reservation } from "./reservations.model";
+import { Photo } from "./photos.model";
 
 
 
@@ -25,6 +25,8 @@ export class Session
 
     @Column()
     address: string;
+    @Column()
+    governorate: string;
     @Column()
     longitude: number
     @Column()
@@ -49,18 +51,14 @@ export class Session
     status: SessionStatus;
     @Column("geography",{spatialFeatureType:"Point",srid:4326})
     @Index({ spatial: true })
-    point: Geometry
+    point: Geometry; 
     @OneToMany(() => Reservation, reservation => reservation.sessionId,{eager:false})
     reservations: Reservation[];
     @Column()
     createdAt: Date;
 
-    @Column({nullable:true})
-    imageUrl1: string;
-    @Column({nullable:true})
-    imageUrl2: string
-    @Column({nullable:true})
-    imageUrl3: string
+    @OneToMany(() => Photo, photo => photo.session,{eager:true})
+    photos: Photo[];
     
     constructor(entity?: Partial<Session>) {
         Object.assign(this, entity);

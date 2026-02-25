@@ -8,14 +8,17 @@ export const KAFKA_TOPICS = {
     OTP_SENT: 'otp.sent',
     PASSWORD_RESET_TOKEN_SENT: 'password.reset.token.sent',
 
-
-    USER_PROFILE_CREATED: 'user.profile.created',
     USER_PROFILE_UPDATED: 'user.profile.updated',
+    USER_FOLLOW_EVENT: 'user.follow.event',
+    USER_UNFOLLOW_EVENT: 'user.unfollow.event',
 
     IMAGE_USER_PROFILE_CREATED: 'image.user.profile.created',
     IMAGE_USER_PROFILE_DELETED: 'image.user.profile.deleted',
     IMAGE_USER_PROFILE_UPDATED: 'image.user.profile.updated',
     
+    LOCATION_USER_CREATED: 'user.location.created',
+    LOCATION_USER_UPDATED: 'user.location.updated',
+    LOCATION_USER_DELETED: 'user.location.deleted',
 
     SESSION_CREATED: 'session.created',
     SESSION_DELETED: 'session.deleted',
@@ -28,8 +31,7 @@ export const KAFKA_TOPICS = {
 
     IMAGES_SESSION_CREATED: 'images.session.created',
     IMAGES_SESSION_DELETED: 'images.session.deleted',
-
-    NEAREST_USERS_FOUND: 'nearest.users.found',
+    
     NEW_SESSION_NOTIFICATION: 'new.session.notification',
     //removed location creation/update events for gRPC migration
 } as const;

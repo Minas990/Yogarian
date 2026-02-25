@@ -18,17 +18,15 @@ message CreateLocationRequest {
   string createdAt = 6; // ISO 8601 string
 }
 
-message Response {
-  bool success = 1;
-  string error = 2;
-} 
+
 
 message CreateLocationResponse {
-  Response response = 1;
-  string address = 2;
-  string governorate = 3;
-  double latitude = 4;
-  double longitude = 5;
+  bool success = 1;
+  string error = 2;
+  string address = 3;
+  string governorate = 4;
+  double latitude = 5;
+  double longitude = 6;
 }
 
 message UpdateLocationRequest {
@@ -40,9 +38,10 @@ message UpdateLocationRequest {
 }
 
 message UpdateLocationResponse {
-  Response response = 1;
-  optional string address = 2;
-  optional string governorate = 3;
-  optional double latitude = 4;
-  optional double longitude = 5;
+  bool success = 1;
+  string error = 2;
+  optional string address = 3;
+  optional string governorate = 4;
+  optional double latitude = 5;
+  optional double longitude = 6;
 }

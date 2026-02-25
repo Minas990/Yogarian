@@ -1,11 +1,15 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { Follow } from '../models/follow.model';
 import { FollowRepository } from '../repos/follow.repository';
+import { KAFKA_SERVICE } from '@app/kafka';
+import { ClientKafka } from '@nestjs/microservices';
+import { UserFollowEvent } from '@app/common/events/user-follow.event';
 
 @Injectable()
 export class FollowService {
     constructor(
         private readonly followRepo:FollowRepository,
+        @Inject(KAFKA_SERVICE) private readonly kafkaClient: ClientKafka
      )
     {
         
@@ -16,12 +20,18 @@ export class FollowService {
             followerId: userId,
             followingId: followedId,
         });
-        return this.followRepo.create(follow);
+        const result = await this.followRepo.create(follow);
+        const event = new UserFollowEvent({createdAt: result.createdAt, followerId: userId, followingId: followedId});
+        this.kafkaClient.emit('user.follow.event', event);
+        return result;
     }
 
     async unfollowUser(userId:string,followedId:string)
     {
-        return this.followRepo.findOneAndDelete({ followerId: userId, followingId: followedId });
+        const result =  this.followRepo.findOneAndDelete({ followerId: userId, followingId: followedId });
+        const event = new UserFollowEvent({createdAt: new Date(), followerId: userId, followingId: followedId});
+        this.kafkaClient.emit('user.unfollow.event', event);
+        return result;
     }
  
     async getMyFollowers(followingId:string)

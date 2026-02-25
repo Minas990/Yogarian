@@ -22,13 +22,9 @@ export interface CreateLocationRequest {
   createdAt: string;
 }
 
-export interface Response {
+export interface CreateLocationResponse {
   success: boolean;
   error: string;
-}
-
-export interface CreateLocationResponse {
-  response?: Response | undefined;
   address: string;
   governorate: string;
   latitude: number;
@@ -44,7 +40,8 @@ export interface UpdateLocationRequest {
 }
 
 export interface UpdateLocationResponse {
-  response?: Response | undefined;
+  success: boolean;
+  error: string;
   address?: string | undefined;
   governorate?: string | undefined;
   latitude?: number | undefined;
@@ -145,25 +142,37 @@ export const CreateLocationRequest: MessageFns<CreateLocationRequest> = {
   },
 };
 
-function createBaseResponse(): Response {
-  return { success: false, error: "" };
+function createBaseCreateLocationResponse(): CreateLocationResponse {
+  return { success: false, error: "", address: "", governorate: "", latitude: 0, longitude: 0 };
 }
 
-export const Response: MessageFns<Response> = {
-  encode(message: Response, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+export const CreateLocationResponse: MessageFns<CreateLocationResponse> = {
+  encode(message: CreateLocationResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
     if (message.success !== false) {
       writer.uint32(8).bool(message.success);
     }
     if (message.error !== "") {
       writer.uint32(18).string(message.error);
     }
+    if (message.address !== "") {
+      writer.uint32(26).string(message.address);
+    }
+    if (message.governorate !== "") {
+      writer.uint32(34).string(message.governorate);
+    }
+    if (message.latitude !== 0) {
+      writer.uint32(41).double(message.latitude);
+    }
+    if (message.longitude !== 0) {
+      writer.uint32(49).double(message.longitude);
+    }
     return writer;
   },
 
-  decode(input: BinaryReader | Uint8Array, length?: number): Response {
+  decode(input: BinaryReader | Uint8Array, length?: number): CreateLocationResponse {
     const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
     const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseResponse();
+    const message = createBaseCreateLocationResponse();
     while (reader.pos < end) {
       const tag = reader.uint32();
       switch (tag >>> 3) {
@@ -183,81 +192,32 @@ export const Response: MessageFns<Response> = {
           message.error = reader.string();
           continue;
         }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-};
-
-function createBaseCreateLocationResponse(): CreateLocationResponse {
-  return { address: "", governorate: "", latitude: 0, longitude: 0 };
-}
-
-export const CreateLocationResponse: MessageFns<CreateLocationResponse> = {
-  encode(message: CreateLocationResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.response !== undefined) {
-      Response.encode(message.response, writer.uint32(10).fork()).join();
-    }
-    if (message.address !== "") {
-      writer.uint32(18).string(message.address);
-    }
-    if (message.governorate !== "") {
-      writer.uint32(26).string(message.governorate);
-    }
-    if (message.latitude !== 0) {
-      writer.uint32(33).double(message.latitude);
-    }
-    if (message.longitude !== 0) {
-      writer.uint32(41).double(message.longitude);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): CreateLocationResponse {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCreateLocationResponse();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.response = Response.decode(reader, reader.uint32());
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
+        case 3: {
+          if (tag !== 26) {
             break;
           }
 
           message.address = reader.string();
           continue;
         }
-        case 3: {
-          if (tag !== 26) {
+        case 4: {
+          if (tag !== 34) {
             break;
           }
 
           message.governorate = reader.string();
           continue;
         }
-        case 4: {
-          if (tag !== 33) {
+        case 5: {
+          if (tag !== 41) {
             break;
           }
 
           message.latitude = reader.double();
           continue;
         }
-        case 5: {
-          if (tag !== 41) {
+        case 6: {
+          if (tag !== 49) {
             break;
           }
 
@@ -356,25 +316,28 @@ export const UpdateLocationRequest: MessageFns<UpdateLocationRequest> = {
 };
 
 function createBaseUpdateLocationResponse(): UpdateLocationResponse {
-  return {};
+  return { success: false, error: "" };
 }
 
 export const UpdateLocationResponse: MessageFns<UpdateLocationResponse> = {
   encode(message: UpdateLocationResponse, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.response !== undefined) {
-      Response.encode(message.response, writer.uint32(10).fork()).join();
+    if (message.success !== false) {
+      writer.uint32(8).bool(message.success);
+    }
+    if (message.error !== "") {
+      writer.uint32(18).string(message.error);
     }
     if (message.address !== undefined) {
-      writer.uint32(18).string(message.address);
+      writer.uint32(26).string(message.address);
     }
     if (message.governorate !== undefined) {
-      writer.uint32(26).string(message.governorate);
+      writer.uint32(34).string(message.governorate);
     }
     if (message.latitude !== undefined) {
-      writer.uint32(33).double(message.latitude);
+      writer.uint32(41).double(message.latitude);
     }
     if (message.longitude !== undefined) {
-      writer.uint32(41).double(message.longitude);
+      writer.uint32(49).double(message.longitude);
     }
     return writer;
   },
@@ -387,11 +350,11 @@ export const UpdateLocationResponse: MessageFns<UpdateLocationResponse> = {
       const tag = reader.uint32();
       switch (tag >>> 3) {
         case 1: {
-          if (tag !== 10) {
+          if (tag !== 8) {
             break;
           }
 
-          message.response = Response.decode(reader, reader.uint32());
+          message.success = reader.bool();
           continue;
         }
         case 2: {
@@ -399,7 +362,7 @@ export const UpdateLocationResponse: MessageFns<UpdateLocationResponse> = {
             break;
           }
 
-          message.address = reader.string();
+          message.error = reader.string();
           continue;
         }
         case 3: {
@@ -407,19 +370,27 @@ export const UpdateLocationResponse: MessageFns<UpdateLocationResponse> = {
             break;
           }
 
-          message.governorate = reader.string();
+          message.address = reader.string();
           continue;
         }
         case 4: {
-          if (tag !== 33) {
+          if (tag !== 34) {
+            break;
+          }
+
+          message.governorate = reader.string();
+          continue;
+        }
+        case 5: {
+          if (tag !== 41) {
             break;
           }
 
           message.latitude = reader.double();
           continue;
         }
-        case 5: {
-          if (tag !== 41) {
+        case 6: {
+          if (tag !== 49) {
             break;
           }
 

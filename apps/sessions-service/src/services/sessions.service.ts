@@ -5,10 +5,8 @@ import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
 import { AppLoggerService, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, SessionUpdatedEvent } from '@app/common';
 import { CreateSessionDto } from '../dto/create-session.dto';
 import { UpdateSessionDto } from '../dto/update-session.dto';
-import { GetSessionQueryDto } from '../dto/get-session-query.dto';
 import { Session } from '../models/session.model';
 import { SessionStatus } from '../types/sessions-status.type';
-import { randomUUID } from 'crypto';
 import { In } from 'typeorm';
 import { CreateLocationRequest, LOCATION_SERVICE_NAME, type LocationServiceClient, UpdateLocationRequest } from '@app/common/generated/location';
 import { firstValueFrom } from 'rxjs';
@@ -67,33 +65,17 @@ export class SessionsService implements OnModuleInit {
       additionalData: { sessionId: createdSession.id },
     });
 
-    this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, new SessionCreatedEvent({
-      address: locationPayload.address,
-      governorate: locationPayload.governorate,
-      latitude: locationPayload.latitude,
-      longitude: locationPayload.longitude,
-      sessionId: createdSession.id,
-      userId: userId
-    }));
     session.status = SessionStatus.UPCOMING;
-    return this.sessionsRepository.create(session);
+    const result =  this.sessionsRepository.create(session);
+
+    this.kafka.emit(KAFKA_TOPICS.SESSION_CREATED, new SessionCreatedEvent({
+      ...result,
+      ...locationResult
+
+    }));
+    return result;
   }
 
-  async getSessions(query: GetSessionQueryDto): Promise<{ data: Session[]; total: number }> {
-    const page = query.page ?? 1;
-    const limit = query.limit ?? 10;
-    const skip = (page - 1) * limit;
-
-    return this.sessionsRepository.findSessionsWithFilters({
-      trainerId: query.trainerId,
-      minPrice: query.minPrice,
-      maxPrice: query.maxPrice,
-      minStartTime: query.minStartTime,
-      duration: query.duration,
-      skip,
-      take: limit,
-    });
-  }
 
   async getSessionById(id: string): Promise<Session> {
     return this.sessionsRepository.findOne({ id });
@@ -125,7 +107,9 @@ export class SessionsService implements OnModuleInit {
 
     Object.assign(session,updateData);
     const updatedSession = await this.sessionsRepository.create(session);
-
+    const event = new SessionUpdatedEvent({
+      ...updatedSession
+    })
     if (location) {
       const locationPayload:UpdateLocationRequest = {
         ownerId: id,
@@ -141,7 +125,9 @@ export class SessionsService implements OnModuleInit {
         userId: userId,
         additionalData: { sessionId: id },
       });
+      Object.assign(event,locationResult);
     }
+    this.kafka.emit(KAFKA_TOPICS.SESSION_UPDATED, event);
     return updatedSession;
   }
 
@@ -234,14 +220,14 @@ export class SessionsService implements OnModuleInit {
     } 
   }
 
-  async handleImagesCreated(userId:string,sessionId:string,photoIds:number[])
+  async handleImagesCreated(userId:string,sessionId:string,photoIds:number[],urls:string[])
   {
     try
     {
       const session = await this.sessionsRepository.findOne({id:sessionId,trainerId:userId,status: SessionStatus.UPCOMING});
-      if(!session) 
-        throw new NotFoundException('Session not found or you are not the trainer of this session');
-      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_CREATION_APPROVED,new SessionImagesCreationApprovedEvent({sessionId,photoIds}));
+      if(!session)         throw new NotFoundException('Session not found or you are not the trainer of this session');
+
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_CREATION_APPROVED,new SessionImagesCreationApprovedEvent({sessionId,photoIds,userId,urls}));
       this.appLogger.logInfo({
         functionName: 'handleImagesCreated',
         message: `Approved images creation for session ${sessionId} by user ${userId}`,
@@ -257,7 +243,7 @@ export class SessionsService implements OnModuleInit {
         userId,
         error,
       });
-      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_CREATION_REJECTED,new SessionImagesCreationRejectedEvent({sessionId,photoIds}));
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_CREATION_REJECTED,new SessionImagesCreationRejectedEvent({sessionId,photoIds,userId,problem:error.message}));
     }
   } 
 
@@ -268,7 +254,7 @@ export class SessionsService implements OnModuleInit {
       const session = await this.sessionsRepository.findOne({id:sessionId,trainerId:userId});
       if(!session) 
         throw new NotFoundException('Session not found or you are not the trainer of this session');
-      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_DELETION_APPROVED,new SessionImagesDeletionApprovedEvent({sessionId,photoIds}));
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_DELETION_APPROVED,new SessionImagesDeletionApprovedEvent({sessionId,photoIds,userId}));
       this.appLogger.logInfo({
         functionName: 'handleSessionImagesDeleted',
         message: `Approved image deletion for session ${sessionId} by user ${userId}`,
@@ -284,7 +270,7 @@ export class SessionsService implements OnModuleInit {
         userId,
         error,
       });
-      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_DELETION_REJECTED,new SessionImagesDeletionRejectedEvent({sessionId,photoIds}));
+      this.kafka.emit(KAFKA_TOPICS.SESSION_IMAGES_DELETION_REJECTED,new SessionImagesDeletionRejectedEvent({sessionId,photoIds,userId,problem:error.message}));
     }
   }
 
