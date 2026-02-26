@@ -12,7 +12,7 @@ export class AuthServiceController {
 
   
   @Post('signup')
-  // @UseGuards(ShortThrottleGuard) 
+  @UseGuards(ShortThrottleGuard) 
   async signUp(@Body() user: CreateUserDto)
   {
     if(user.role === Roles.ADMIN)
@@ -21,7 +21,7 @@ export class AuthServiceController {
   }
 
   @Post('login')
-  // @UseGuards(ShortThrottleGuard) //disabled for testing
+  @UseGuards(ShortThrottleGuard) 
   async logIn(@Body('email') email: string, @Body('password') password: string, @Res({passthrough:true}) res: Response)
   {
     const  {token,user} = await this.AuthService.logIn(email,password);

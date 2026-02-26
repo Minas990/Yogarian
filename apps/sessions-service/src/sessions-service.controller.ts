@@ -13,7 +13,7 @@ export class SessionsServiceController {
     private readonly sessionsService: SessionsService,
     ) {}
 
-    @UseGuards(JwtAuthGuard)//throttler is disabled for testing
+    @UseGuards(JwtAuthGuard)
     @Post()
     async createSession(@CurrentUser() user : UserTokenPayload,@Body() createSessionDto:CreateSessionDto)
     {
