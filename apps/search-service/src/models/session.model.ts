@@ -1,6 +1,6 @@
 import { Column, Entity, type Geometry, Index, JoinColumn, ManyToMany, ManyToOne, OneToMany, PrimaryColumn } from "typeorm";
 import { User } from "./User.entity";
-import { SessionStatus } from "apps/sessions-service/src/types/sessions-status.type";
+import { SessionStatus } from "@app/common/types/sessions-status.type";
 import { Reservation } from "./reservations.model";
 import { Photo } from "./photos.model";
 

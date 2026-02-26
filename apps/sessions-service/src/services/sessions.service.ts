@@ -6,7 +6,7 @@ import { AppLoggerService, SessionCreatedEvent, SessionDeletedEvent, SessionImag
 import { CreateSessionDto } from '../dto/create-session.dto';
 import { UpdateSessionDto } from '../dto/update-session.dto';
 import { Session } from '../models/session.model';
-import { SessionStatus } from '../types/sessions-status.type';
+import { SessionStatus } from '../../../../libs/common/src/types/sessions-status.type';
 import { In } from 'typeorm';
 import { CreateLocationRequest, LOCATION_SERVICE_NAME, type LocationServiceClient, UpdateLocationRequest } from '@app/common/generated/location';
 import { firstValueFrom } from 'rxjs';

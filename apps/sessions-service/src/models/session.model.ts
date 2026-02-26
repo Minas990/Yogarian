@@ -1,6 +1,6 @@
 import { AbstractEntity } from '@app/database/database.entity';
 import {  Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
-import { SessionStatus } from '../types/sessions-status.type';
+import { SessionStatus } from '../../../../libs/common/src/types/sessions-status.type';
 
 @Entity()
 @Index('idx_session_trainer', ['trainerId'])

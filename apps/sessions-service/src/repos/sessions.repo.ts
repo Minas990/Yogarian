@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, FindOptionsRelations, FindOptionsWhere, Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity.js';
 import { Session } from '../models/session.model';
-import { SessionStatus } from '../types/sessions-status.type';
+import { SessionStatus } from '../../../../libs/common/src/types/sessions-status.type';
 
 interface FilterOptions {
   trainerId?: string;

@@ -1,5 +1,5 @@
 import { Column, Entity, Index, PrimaryColumn, UpdateDateColumn } from "typeorm";
-import { ReservationStatus } from "../types/reservation-status.type";
+import { ReservationStatus } from "../../../../libs/common/src/types/reservation-status.type";
 
 @Entity()
 @Index("session_idx", ["sessionId"])

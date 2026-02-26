@@ -1,5 +1,5 @@
 import { PartialType } from "@nestjs/mapped-types";
-import { SessionStatus } from "apps/sessions-service/src/types/sessions-status.type";
+import { SessionStatus } from "@app/common/types/sessions-status.type";
 
 export class SessionCreatedEvent 
 {

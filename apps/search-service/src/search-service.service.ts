@@ -12,7 +12,7 @@ import { UserImageProfile } from '@app/common/events/user-image';
 import { DeleteLocationUserEvent, LocationUserEvent, UpdateLocationUserEvent } from '@app/common/events/location-user.event';
 import { Photo } from './models/photos.model';
 import { FindSessionsDto } from './types/find-sessions.type';
-import { SessionStatus } from 'apps/sessions-service/src/types/sessions-status.type';
+import { SessionStatus } from '@app/common/types/sessions-status.type';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
 import { ClientKafka } from '@nestjs/microservices';
 import { SessionNotifyEvent } from '@app/common/events/session-notify.event';

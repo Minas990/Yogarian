@@ -1,0 +1,25 @@
+events {}
+
+http {
+
+    upstream search_backend {
+        least_conn;
+
+        server yoga-search-service-1:8009;
+        server yoga-search-service-2:8009;
+        server yoga-search-service-3:8009;
+    }
+
+    server {
+        listen 8009;
+
+        location / {
+            proxy_pass http://search_backend;
+
+            proxy_http_version 1.0;
+            proxy_set_header Connection close;
+
+            add_header X-Replica $upstream_addr always;
+        }
+    }
+}

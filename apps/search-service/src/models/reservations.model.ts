@@ -1,7 +1,7 @@
 import { Column, Entity, Index, JoinColumn, ManyToOne, OneToMany, OneToOne, PrimaryColumn } from "typeorm";
 import { User } from "./User.entity";
 import { Session } from "./session.model";
-import { ReservationStatus } from "apps/reservations-service/src/types/reservation-status.type";
+import { ReservationStatus } from "@app/common/types/reservation-status.type";
 
 @Entity()
 @Index('idx_reservation_user', ['userId'])
