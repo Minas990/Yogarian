@@ -32,3 +32,6 @@ also ill introduce a cqrs model soon with the search services
 
 th\e current models in search service is not deserialized 
 for testing purposes i made like this soon ill change 
+
+maybe we will need to partition the data in search service :(
+the performance of queries when the raduis is high isnt bad yes but isnt very good also :O

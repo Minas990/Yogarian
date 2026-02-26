@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Inject, Injectable, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { User } from './models/User.entity';
 import { Repository } from 'typeorm';
@@ -13,6 +13,9 @@ import { DeleteLocationUserEvent, LocationUserEvent, UpdateLocationUserEvent } f
 import { Photo } from './models/photos.model';
 import { FindSessionsDto } from './types/find-sessions.type';
 import { SessionStatus } from 'apps/sessions-service/src/types/sessions-status.type';
+import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
+import { ClientKafka } from '@nestjs/microservices';
+import { SessionNotifyEvent } from '@app/common/events/session-notify.event';
 
 @Injectable()
 export class SearchServiceService implements OnModuleInit {
@@ -23,6 +26,7 @@ export class SearchServiceService implements OnModuleInit {
     @InjectRepository(Reservation) private readonly reservationRepo:Repository<Reservation>,
     @InjectRepository(Photo) private readonly photoRepo: Repository<Photo>,
     private readonly appLogger: AppLoggerService,
+    @Inject(KAFKA_SERVICE) private readonly kafka:ClientKafka
   )
     {
 
@@ -320,29 +324,28 @@ export class SearchServiceService implements OnModuleInit {
 
     if (query.maxParticipants)
         qb.andWhere('session.maxParticipants <= :maxParticipants', { maxParticipants: query.maxParticipants });
-    if (query.cursor) //cursor format: createdAt__sessionId
-    {
-        const [cursorDate, cursorId] = query.cursor.split('__');
-        qb.andWhere(
-            '(session.createdAt < :cursorDate OR (session.createdAt = :cursorDate AND session.sessionId < :cursorId))',
-            { cursorDate: new Date(cursorDate), cursorId }
-        );
+    if (query.cursor) {
+    const [cursorDate, cursorId] = query.cursor.split('__');
+      qb.andWhere(
+          '(session.createdAt > :cursorDate OR (session.createdAt = :cursorDate AND session.sessionId > :cursorId))',
+          { cursorDate: new Date(cursorDate), cursorId }
+      );
     }
+
     const limit = Math.min(query.limit ?? 20, 100);
 
     const sessions = await qb
-        .orderBy('session.createdAt', 'DESC')
-        .addOrderBy('session.sessionId', 'DESC')
-        .take(limit+1)
+        .orderBy('session.createdAt', 'ASC')
+        .addOrderBy('session.sessionId', 'ASC')
+        .take(limit + 1)
         .getMany();
-      
-    const hasNextPage = sessions.length > limit; 
-    if(hasNextPage) sessions.pop(); //remove the extra session used to check if there is a next page
+
+    const hasNextPage = sessions.length > limit;
+    if (hasNextPage) sessions.pop();
 
     const nextCursor = hasNextPage
         ? `${sessions[sessions.length - 1].createdAt.toISOString()}__${sessions[sessions.length - 1].sessionId}`
-        : null;
-        
+        : null;        
     return {
         data: sessions,
         nextCursor,
@@ -475,5 +478,69 @@ async getFollowers(userId: string, limit :number, page :number = 0)
     return user;
   }
 
+  async getNearestUsers(longitude: number, latitude: number) {
+    const qb = this.userRepo.createQueryBuilder('user');
+    qb.where(
+      `ST_DWithin(
+        "user"."point"::geography,
+        ST_SetSRID(ST_MakePoint(:longitude, :latitude), 4326)::geography,
+        :radius
+      )`,
+      { longitude, latitude, radius: 90000 } // 9 km radius
+    ).andWhere('user.role = :role', { role: 'USER' }) // Only consider users, not trainers
+    .select(['user.email AS email'])
+      .limit(100);
+    const users = await qb.getRawMany();
+    return users.map(user => user.email);
+  }
 
+  async getFollowersEmail(userId: string):Promise<string[]>
+  {
+    const qb = this.followRepo
+        .createQueryBuilder('follow')
+        .innerJoin('follow.follower', 'follower')
+        .where('follow.followingId = :userId', { userId })
+        .select([
+            'follower.email AS email',
+        ]);
+    const result = await qb.getRawMany();
+    return result.map(r => r.email);
+  }
+
+  async notifyUsersForNewSession(sessionData: SessionCreatedEvent, users: string[],message:string)
+  {
+
+    const trainer = await this.getTrainerById(sessionData.userId);
+    if(!trainer)//should not happen 
+    {
+      this.appLogger.logError({
+        functionName: 'notifyUsersForNewSession',
+        problem: `Trainer with userId: ${sessionData.userId} not found in search service while trying to notify users for new session`,
+        error: new Error('Trainer not found')
+      });
+      return;
+    }
+    const event = new SessionNotifyEvent({
+      sessionId: sessionData.sessionId,
+      trainerId: sessionData.userId,
+      trainerName: trainer.name,
+      trainerPhotoUrl: trainer.profilePictureUrl,
+      address: sessionData.address,
+      longitude: sessionData.longitude,
+      latitude: sessionData.latitude,
+      users, 
+      message,
+      price: sessionData.price,
+      startTime: sessionData.startTime,
+      title: sessionData.title,
+    });
+    this.kafka.emit(KAFKA_TOPICS.NEW_SESSION_NOTIFICATION, event);
+    this.appLogger.logInfo({
+      functionName: 'notifyUsersForNewSession',
+      message: `Notifying ${users.length} users about new session with sessionId: ${sessionData.sessionId}`,
+      additionalData: {
+        message
+      }
+    });
+  }
 }

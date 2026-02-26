@@ -21,6 +21,7 @@
     "proto:generate": "mkdir libs/common/src/generated -ErrorAction SilentlyContinue; protoc --plugin=protoc-gen-ts_proto=./node_modules/.bin/protoc-gen-ts_proto.cmd --ts_proto_out=./libs/common/src/generated --ts_proto_opt=nestJs=true,esModuleInterop=true,outputServices=grpc-js,useOptionals=messages -I ./libs/common/src/proto ./libs/common/src/proto/*.proto"
   },
   "dependencies": {
+    "@faker-js/faker": "^10.3.0",
     "@grpc/grpc-js": "^1.14.3",
     "@grpc/proto-loader": "^0.8.0",
     "@nestjs/bullmq": "^11.0.4",
@@ -35,6 +36,7 @@
     "@nestjs/throttler": "^6.5.0",
     "@nestjs/typeorm": "^11.0.0",
     "@types/nodemailer": "^7.0.9",
+    "axios": "^1.13.5",
     "bcrypt": "^6.0.0",
     "bullmq": "^5.69.3",
     "class-transformer": "^0.5.1",

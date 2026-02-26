@@ -3,6 +3,7 @@ import { EmailService } from './email/email.service';
 import { EventPattern } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { OtpSentEvent, PasswordResetTokenSentEvent, UserRegisteredEvent } from '@app/common';
+import { SessionNotifyEvent } from '@app/common/events/session-notify.event';
 
 @Controller()
 export class NotificationsServiceController {
@@ -47,29 +48,28 @@ export class NotificationsServiceController {
   }
 
   @EventPattern(KAFKA_TOPICS.NEW_SESSION_NOTIFICATION)
-  async sendNewSessionNotification(data: {
-    emails: string[],
-    sessionId: string,
-    trainerName: string,
-    trainerId: string,
-    message: string
-  }) {
-    const sendResults = await Promise.all(
-      data.emails.map(email =>
-        this.emailService.sendEmailFromTemplate(
-          email,
-          'New Session',
-          'newSessionNotification',
-          {
-            message: data.message,
-            sessionId: data.sessionId,
-            trainerName: data.trainerName,
-            trainerId: data.trainerId
-          },
-          data.trainerId
+  async handleNewSession(event: SessionNotifyEvent)
+  {
+    console.log('Received new session notification event:', event);
+    try {
+      const promises = await Promise.all(
+        event.users.map(email => 
+          this.emailService.sendEmailFromTemplate(email,'new Session','newSessionNotification',{
+            message: event.message,
+            sessionId: event.sessionId,
+            title: event.title,
+            startTime:String(event.startTime),
+            price: event.price.toString(),
+            address: event.address,
+            trainerName:event.trainerName,
+            trainerId:event.trainerId
+          },event.trainerId)
         )
       )
-    );
-    return sendResults;
+      
+    } catch (error) {
+      console.error('Error sending session notification emails:', error);
+    }
   }
+
 }

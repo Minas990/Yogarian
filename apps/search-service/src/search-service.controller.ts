@@ -91,7 +91,21 @@ export class SearchServiceController {
   @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
   async handleSessionCreated(@Payload() data: SessionCreatedEvent)
   {
-    await this.searchServiceService.handleSessionCreated(data).catch((err) => console.log('Failed to index session in search service',err));
+    await this.searchServiceService.handleSessionCreated(data).catch((err) => console.log('Failed to create session in search service',err));
+    
+    try {
+      
+      const nearest = await this.searchServiceService.getNearestUsers(data.longitude,data.latitude);
+      const followers = await this.searchServiceService.getFollowersEmail(data.userId); 
+      const finalNearest = nearest.filter(near => !followers.includes(near)); 
+      //complexity here are m*n but the array size is only 100  a better solution to use set but m*n is acceptable for this case and we want to avoid the overhead of creating a set and converting back to array
+      await Promise.all([
+        this.searchServiceService.notifyUsersForNewSession(data, finalNearest,`A new session has been created near you: ${data.title}`),
+        this.searchServiceService.notifyUsersForNewSession(data, followers,`A trainer you follow created a new session: ${data.title}`)
+      ]);
+    } catch (error) {
+      console.log('Error in handling session created event', error);
+    }
   }
 
   @EventPattern(KAFKA_TOPICS.SESSION_UPDATED)
@@ -119,7 +133,7 @@ export class SearchServiceController {
     return this.searchServiceService.handleSessionImagesDeletionApproved(data);
   }
 
-  @UseGuards(LongThrottleGuard)
+  // @UseGuards(LongThrottleGuard)
   @Get('sessions')
   async getAllSessions(@Query() query:FindSessionsDto)
   {
