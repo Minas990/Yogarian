@@ -89,7 +89,7 @@ export class SearchServiceController {
 
   
 
-  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)
+  @EventPattern(KAFKA_TOPICS.SESSION_CREATED)//no need for check the duplication of event bcs the sessionId is unique
   async handleSessionCreated(@Payload() data: SessionCreatedEvent)
   {
     await this.searchServiceService.handleSessionCreated(data).catch((err) => console.log('Failed to create session in search service',err));

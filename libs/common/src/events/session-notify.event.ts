@@ -1,5 +1,6 @@
 export class SessionNotifyEvent 
 {
+    eventId: string;
     sessionId: string;
     trainerId: string;
     trainerName: string;

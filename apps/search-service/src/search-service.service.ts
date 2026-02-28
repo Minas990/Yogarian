@@ -16,6 +16,7 @@ import { SessionStatus } from '@app/common/types/sessions-status.type';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
 import { ClientKafka } from '@nestjs/microservices';
 import { SessionNotifyEvent } from '@app/common/events/session-notify.event';
+import { randomBytes } from 'crypto';
 
 @Injectable()
 export class SearchServiceService implements OnModuleInit {
@@ -521,6 +522,7 @@ async getFollowers(userId: string, limit :number, page :number = 0)
       return;
     }
     const event = new SessionNotifyEvent({
+      eventId: randomBytes(16).toString('hex'),
       sessionId: sessionData.sessionId,
       trainerId: sessionData.userId,
       trainerName: trainer.name,

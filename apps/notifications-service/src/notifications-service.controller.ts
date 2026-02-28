@@ -4,10 +4,13 @@ import { EventPattern } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { OtpSentEvent, PasswordResetTokenSentEvent, UserRegisteredEvent } from '@app/common';
 import { SessionNotifyEvent } from '@app/common/events/session-notify.event';
+import { NotificationsService } from './notifications-service.service';
 
 @Controller()
 export class NotificationsServiceController {
-  constructor(private readonly emailService: EmailService) 
+  constructor(private readonly emailService: EmailService,
+    private readonly notiService: NotificationsService
+  ) 
   {
 
   }
@@ -48,26 +51,38 @@ export class NotificationsServiceController {
   }
 
   @EventPattern(KAFKA_TOPICS.NEW_SESSION_NOTIFICATION)
-  async handleNewSession(event: SessionNotifyEvent)
-  {
+  async handleNewSession(event: SessionNotifyEvent): Promise<void> {
     try {
-      const promises = await Promise.all(
-        event.users.map(email => 
-          this.emailService.sendEmailFromTemplate(email,'new Session','newSessionNotification',{
+      await this.notiService.createEventWithTasks(
+        {
+          eventId: event.eventId,
+          eventType: KAFKA_TOPICS.NEW_SESSION_NOTIFICATION,
+          emitter: event.trainerId,
+          payload: event,
+        },
+        event.users.map(email => ({
+          email,
+          subject: 'New Session Available',
+          templateName: 'newSessionNotification',
+          userId: event.trainerId,
+          priority: 2,
+          payload: {
             message: event.message,
             sessionId: event.sessionId,
             title: event.title,
-            startTime:String(event.startTime),
+            startTime: String(event.startTime),
             price: event.price.toString(),
             address: event.address,
-            trainerName:event.trainerName,
-            trainerId:event.trainerId
-          },event.trainerId)
-        )
-      )
-      
-    } catch (error) {
-      console.error('Error sending session notification emails:', error);
+            trainerName: event.trainerName,
+            trainerId: event.trainerId,
+          },
+        }))
+      );
+    } 
+    catch (error) {
+      if (error.code === '23505') 
+        return; 
+      console.error('Error creating notification event and tasks:', error);//for testing , ill not throw error to avoid retries, but in production we should handle it properly
     }
   }
 

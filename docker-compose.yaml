@@ -183,6 +183,21 @@ services:
     networks:
       - yoga-network
 
+
+  postgres-notifications:
+    image: postgres:15.1-alpine
+    container_name: yoga-postgres-notifications
+    ports:
+      - "5441:5432"
+    environment:
+      POSTGRES_USER: notifications
+      POSTGRES_PASSWORD: notifications
+      POSTGRES_DB: notifications
+    volumes:
+      - postgres-notifications-data:/var/lib/postgresql/data
+    networks:
+      - yoga-network
+
   redis:
     image: redis:7.2-alpine
     container_name: yoga-redis
@@ -209,4 +224,5 @@ volumes:
   postgres-reservations-data:
   postgres-search-data:
   postgres-search-slave-data:
+  postgres-notifications-data:
   redis-data:

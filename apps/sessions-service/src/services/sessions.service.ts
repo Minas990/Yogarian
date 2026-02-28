@@ -43,11 +43,6 @@ export class SessionsService implements OnModuleInit {
         message: `Scheduled job ${jobName} with schedule ${schedule}`,
       });
     }
-    else 
-    {
-await queue.obliterate({ force: true });
-  console.log(`Queue ${queue.name} cleared`);
-  }
   }
   async onModuleInit() {
     await this.kafka.connect();
