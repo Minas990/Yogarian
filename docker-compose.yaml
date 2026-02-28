@@ -144,7 +144,7 @@ services:
       - yoga-network
 
   postgres-search:
-    image: postgis/postgis:15-3.4-alpine
+    image: postgis/postgis:15-3.4
     container_name: yoga-postgres-search
     entrypoint: ["/bin/bash", "/etc/postgresql/primary-entrypoint.sh"]
     command: ["-c", "wal_level=replica", "-c", "max_wal_senders=10", "-c", "max_replication_slots=10", "-c", "hot_standby=on"]
@@ -162,7 +162,7 @@ services:
       - yoga-network
 
   postgres-search-slave:
-    image: postgis/postgis:15-3.4-alpine
+    image: postgis/postgis:15-3.4
     container_name: yoga-postgres-search-slave
     depends_on:
       - postgres-search
@@ -193,44 +193,6 @@ services:
     networks:
       - yoga-network
 
-  search-service:
-    build:
-      context: .
-      dockerfile: ./apps/search-service/Dockerfile
-    depends_on:
-      - postgres-search
-      - postgres-search-slave
-      - kafka        
-      - redis        
-    expose:
-      - "8009"
-    environment:
-      KAFKA_CONSUMER_GROUP_ID: "search-service-consumer"
-      KAFKA_BROKERS: "kafka:29092"
-      KAFKA_CLIENT_ID: "search-service"
-      SEARCH_PORT: "8009"
-      DATABASE_URL: "postgresql://search:search@postgres-search:5432/search?schema=public"
-      DATABASE_REPLICATION: "true"
-      DATABASE_SLAVE_URLS: "postgresql://search:search@postgres-search-slave:5432/search?schema=public"
-      RATE_LIMIT_MEDIUM_TTL: "60000"
-      RATE_LIMIT_MEDIUM_LIMIT: "20"
-      RATE_LIMIT_LONG_TTL: "300000"
-      RATE_LIMIT_LONG_LIMIT: "100"
-      REDIS_HOST: "redis"
-    networks:
-      - yoga-network  
-
-  nginx-search:
-    image: nginx:1.25-alpine
-    container_name: yoga-nginx-search
-    depends_on:
-      - search-service
-    volumes:
-      - ./docker/nginx/search-service.nginx:/etc/nginx/nginx.conf:ro
-    ports:
-      - "8009:8009"
-    networks:
-      - yoga-network
 networks:
   yoga-network:
     driver: bridge

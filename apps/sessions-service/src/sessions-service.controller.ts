@@ -13,7 +13,7 @@ export class SessionsServiceController {
     private readonly sessionsService: SessionsService,
     ) {}
 
-    @UseGuards(JwtAuthGuard)
+    @UseGuards(JwtAuthGuard,MediumThrottleGuard)
     @Post()
     async createSession(@CurrentUser() user : UserTokenPayload,@Body() createSessionDto:CreateSessionDto)
     {

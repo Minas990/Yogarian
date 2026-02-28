@@ -7,8 +7,8 @@ const fs = require('fs');
 const AUTH_URL = 'http://localhost:8001/auth/signup'; 
 const SESSION_URL = 'http://localhost:8005/sessions'; 
 
-const TRAINER_COUNT = 100;
-const SESSIONS_PER_TRAINER = 1000;
+const TRAINER_COUNT = 500;
+const SESSIONS_PER_TRAINER = 500;
 
 async function createTrainer(index) {
   const email = `trainer${index}@example.com`;
