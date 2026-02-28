@@ -24,6 +24,9 @@ export const KAFKA_TOPICS = {
     SESSION_DELETED: 'session.deleted',
     SESSION_UPDATED: 'session.updated',
     
+    SESSIONS_ONGOING: 'sessions.ongoing',
+    SESSIONS_COMPLETED: 'sessions.completed',
+
     SESSION_IMAGES_CREATION_APPROVED: 'session.images.creation.approved',
     SESSION_IMAGES_CREATION_REJECTED: 'session.images.creation.rejected',//for ownership verification
     SESSION_IMAGES_DELETION_APPROVED: 'session.images.deletion.approved',

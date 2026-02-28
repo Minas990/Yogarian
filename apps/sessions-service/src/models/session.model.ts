@@ -6,6 +6,7 @@ import { SessionStatus } from '../../../../libs/common/src/types/sessions-status
 @Index('idx_session_trainer', ['trainerId'])
 @Index('idx_session_price', ['price'])
 @Index('idx_session_startTime', ['startTime'])
+@Index('idx_session_status_startTime', ['status', 'startTime'])
 export class Session extends AbstractEntity<Session> {
   @PrimaryGeneratedColumn('uuid')
   id: string;
@@ -26,6 +27,7 @@ export class Session extends AbstractEntity<Session> {
   currentParticipants: number;
 
   @Column({
+    name: 'startTime',
     type: 'timestamp',
   })
   startTime: Date;

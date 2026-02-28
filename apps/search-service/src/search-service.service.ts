@@ -543,4 +543,13 @@ async getFollowers(userId: string, limit :number, page :number = 0)
       }
     });
   }
+
+  async changeSessionStatus(sessionsId: string[], status: SessionStatus)
+  {
+    return this.sessionRepo.createQueryBuilder('session')
+      .update()
+      .set({ status })
+      .where('"session"."sessionId" IN (:...sessionsId)', { sessionsId })
+      .execute();
+  }
 }

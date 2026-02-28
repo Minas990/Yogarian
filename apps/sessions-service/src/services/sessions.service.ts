@@ -7,9 +7,12 @@ import { CreateSessionDto } from '../dto/create-session.dto';
 import { UpdateSessionDto } from '../dto/update-session.dto';
 import { Session } from '../models/session.model';
 import { SessionStatus } from '../../../../libs/common/src/types/sessions-status.type';
-import { In } from 'typeorm';
+import { In, LessThanOrEqual } from 'typeorm';
 import { CreateLocationRequest, LOCATION_SERVICE_NAME, type LocationServiceClient, UpdateLocationRequest } from '@app/common/generated/location';
 import { firstValueFrom } from 'rxjs';
+import { InjectQueue } from '@nestjs/bullmq';
+import { QUEUE_CONSTANTS } from '../queue/queues.constants';
+import { Queue } from 'bullmq';
 
 @Injectable()
 export class SessionsService implements OnModuleInit {
@@ -17,13 +20,40 @@ export class SessionsService implements OnModuleInit {
     private readonly sessionsRepository: SessionsRepository,
     @Inject(KAFKA_SERVICE) private readonly kafka: ClientKafka,
     private readonly appLogger: AppLoggerService,
-@Inject(LOCATION_SERVICE_NAME) private readonly locationGrpcClient: ClientGrpc,  ) {}
+    @Inject(LOCATION_SERVICE_NAME) private readonly locationGrpcClient: ClientGrpc,
+    @InjectQueue(QUEUE_CONSTANTS.RUNNING_SESSIONS) private readonly runningSessionsQueue: Queue,
+    @InjectQueue(QUEUE_CONSTANTS.COMPLETED_SESSIONS) private readonly completedSessionsQueue: Queue,
+) {}
 
   private locationService: LocationServiceClient;
 
+  private async initilizeQueues(queue: Queue, jobName: string, schedule: number) 
+  {
+    const runninJobs = await queue.getJobSchedulersCount();
+    if(runninJobs === 0)
+    {
+      await queue.add(jobName, {}, {
+        repeat: {
+          every: schedule,
+        },
+        removeOnComplete:true
+      });
+      this.appLogger.logInfo({
+        functionName: 'initilizeQueues',
+        message: `Scheduled job ${jobName} with schedule ${schedule}`,
+      });
+    }
+    else 
+    {
+await queue.obliterate({ force: true });
+  console.log(`Queue ${queue.name} cleared`);
+  }
+  }
   async onModuleInit() {
     await this.kafka.connect();
     this.locationService = this.locationGrpcClient.getService<LocationServiceClient>('LocationService');
+    await this.initilizeQueues(this.runningSessionsQueue, 'moveRunningSessionsToOngoing',  60 * 1000);
+    await this.initilizeQueues(this.completedSessionsQueue, 'moveOnGoingSessionsToCompleted',  60 * 1000);
   }
 
   async create(userId: string, createSessionDto: CreateSessionDto): Promise<Session> {
@@ -261,4 +291,40 @@ export class SessionsService implements OnModuleInit {
     }
   }
 
+  async moveRunningSessionsToOngoing() : Promise<string[]>
+  {
+    
+    const now = new Date();
+    const sessionsToUpdate = await this.sessionsRepository.createQueryBuilder('session')
+    .where("status = :status", { status: SessionStatus.UPCOMING })
+    .andWhere('"startTime" <= :now', { now })
+    .limit(100)
+    .select('id').getRawMany();
+    const sessionIds = sessionsToUpdate.map(s => s.id); 
+    if(sessionIds.length === 0) return [];
+    await this.sessionsRepository.createQueryBuilder()
+    .update()
+    .set({ status: SessionStatus.ONGOING })
+    .whereInIds(sessionIds)
+    .execute();
+    return sessionIds;
+  }
+
+async moveOnGoingSessionsToCompleted(): Promise<string[]> {
+  const now = new Date();
+  const sessionsToUpdate = await this.sessionsRepository.createQueryBuilder('session')
+    .where('status = :status', { status: SessionStatus.ONGOING })
+    .andWhere('"startTime" + INTERVAL \'1 minute\' * "duration" <= :now', { now })
+    .select('id')
+    .limit(100)
+    .getRawMany();
+  const sessionIds = sessionsToUpdate.map(s => s.id);
+  if (sessionIds.length === 0) return [];
+  await this.sessionsRepository.createQueryBuilder('session')
+    .update()
+    .set({ status: SessionStatus.COMPLETED })
+    .whereInIds(sessionIds)
+    .execute();
+  return sessionIds;
+}
 }

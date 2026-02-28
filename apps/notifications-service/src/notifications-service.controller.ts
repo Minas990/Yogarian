@@ -50,7 +50,6 @@ export class NotificationsServiceController {
   @EventPattern(KAFKA_TOPICS.NEW_SESSION_NOTIFICATION)
   async handleNewSession(event: SessionNotifyEvent)
   {
-    console.log('Received new session notification event:', event);
     try {
       const promises = await Promise.all(
         event.users.map(email => 

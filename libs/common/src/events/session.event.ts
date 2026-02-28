@@ -36,3 +36,21 @@ export class SessionDeletedEvent  {
     }
     sessionId: string;
 }
+
+export class SessionOngoingEvent  
+{
+    constructor(partial: Partial<SessionOngoingEvent>) 
+    {
+        Object.assign(this, partial);
+    }
+    sessionsId: string[];
+}
+
+export class SessionCompletedEvent extends SessionOngoingEvent
+{
+    constructor(partial: Partial<SessionCompletedEvent>)
+    {
+        super(partial);
+        Object.assign(this, partial);
+    }
+}

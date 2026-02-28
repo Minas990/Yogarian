@@ -2,13 +2,14 @@ import { BadRequestException, Controller, Get, Param, ParseUUIDPipe, Query, UseG
 import { SearchServiceService } from './search-service.service';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
-import { CurrentUser, JwtAuthGuard, Roles, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent,type UserTokenPayload } from '@app/common';
+import { CurrentUser, JwtAuthGuard, Roles, SessionCompletedEvent, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionOngoingEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent,type UserTokenPayload } from '@app/common';
 import { UserProfileUpdatedEvent } from '@app/common/events/user-profile-updated.event';
 import { UserFollowEvent } from '@app/common/events/user-follow.event';
 import { UserImageProfile } from '@app/common/events/user-image';
 import { DeleteLocationUserEvent, LocationUserEvent, UpdateLocationUserEvent } from '@app/common/events/location-user.event';
 import { FindSessionsDto } from './types/find-sessions.type';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
+import { SessionStatus } from '@app/common/types/sessions-status.type';
 
 @Controller('search')
 export class SearchServiceController {
@@ -133,7 +134,20 @@ export class SearchServiceController {
     return this.searchServiceService.handleSessionImagesDeletionApproved(data);
   }
 
-  // @UseGuards(LongThrottleGuard)
+  @EventPattern(KAFKA_TOPICS.SESSIONS_ONGOING)
+  async handleSessionsOngoing(@Payload() data: SessionOngoingEvent)
+  {
+    console.log('Handling sessions ongoing event for session id:', data.sessionsId);
+    return this.searchServiceService.changeSessionStatus(data.sessionsId,SessionStatus.ONGOING);
+  }
+
+  @EventPattern(KAFKA_TOPICS.SESSIONS_COMPLETED)
+  async handleSessionsCompleted(@Payload() data: SessionCompletedEvent)
+  {
+    return this.searchServiceService.changeSessionStatus(data.sessionsId,SessionStatus.COMPLETED);
+  }
+
+  @UseGuards(LongThrottleGuard)
   @Get('sessions')
   async getAllSessions(@Query() query:FindSessionsDto)
   {

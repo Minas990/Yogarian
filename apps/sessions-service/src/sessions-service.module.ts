@@ -7,12 +7,16 @@ import { CloudinaryModule, JwtAuthGuard, JwtStrategy, LoggerModule, RateLimiterM
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SessionsService } from './services/sessions.service';
 import { SessionsRepository } from './repos/sessions.repo';
+import { RunningSessionsProcessor } from './queue/ongoing.processor';
+import { CompletedSessionsProcessor } from './queue/completed.processor';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { MulterModule } from '@nestjs/platform-express';
 import { memoryStorage } from 'multer';
 import { Session } from './models/session.model';
 import { ClientsModule, Transport } from '@nestjs/microservices';
 import { LOCATION_PACKAGE_NAME, LOCATION_SERVICE_NAME } from '@app/common/generated/location';
+import { BullModule } from '@nestjs/bullmq';
+import { QUEUE_CONSTANTS } from './queue/queues.constants';
 
 @Module({
   imports: [
@@ -56,11 +60,28 @@ import { LOCATION_PACKAGE_NAME, LOCATION_SERVICE_NAME } from '@app/common/genera
           }),
         }),
       LoggerModule.forService('sessions-service'),
+      BullModule.forRootAsync({
+        inject: [ConfigService],
+        useFactory: (cs: ConfigService) => ({
+          connection: {
+            host: cs.getOrThrow<string>('REDIS_HOST'),
+            port: cs.getOrThrow<number>('REDIS_PORT'),
+          },
+        }),
+      }),
+      BullModule.registerQueue({
+        name:QUEUE_CONSTANTS.RUNNING_SESSIONS,
+      }),
+      BullModule.registerQueue({
+        name:QUEUE_CONSTANTS.COMPLETED_SESSIONS,
+      })
   ],
   controllers: [SessionsServiceController],
   providers: [
     SessionsService,
     SessionsRepository,
+    RunningSessionsProcessor,
+    CompletedSessionsProcessor,
     {
       provide: APP_INTERCEPTOR,
       useClass: RequestLoggerInterceptor,
