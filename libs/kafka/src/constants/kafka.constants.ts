@@ -36,6 +36,17 @@ export const KAFKA_TOPICS = {
     IMAGES_SESSION_DELETED: 'images.session.deleted',
     
     NEW_SESSION_NOTIFICATION: 'new.session.notification',
+
+    CHECK_SESSIONS_AVAILABLE_COMMAND: 'check.sessions.available.command',
+    CHECK_SESSIONS_AVAILABLE_RESPONSE: 'check.sessions.available.response',
+    CREATE_PAYMENT_CHECKOUT_COMMAND: 'create.payment.checkout.command',
+    CREATE_PAYMENT_CHECKOUT_RESPONSE: 'create.payment.checkout.response',
+
+    RESERVATION_CANCELLED: 'reservation.cancelled',
+
+    PAYMENT_CONFIRMED: 'payment.confirmed',
+    PAYMENT_FAILED: 'payment.failed',
+
     //removed location creation/update events for gRPC migration
 } as const;
 

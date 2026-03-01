@@ -13,6 +13,7 @@ import { firstValueFrom } from 'rxjs';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_CONSTANTS } from '../queue/queues.constants';
 import { Queue } from 'bullmq';
+import { CheckSessionsAvailableResponse } from '@app/common/commands/sessions,command';
 
 @Injectable()
 export class SessionsService implements OnModuleInit {
@@ -322,4 +323,66 @@ async moveOnGoingSessionsToCompleted(): Promise<string[]> {
     .execute();
   return sessionIds;
 }
+
+  async handleCheckSessionsAvailable(sessionId: string, requestId: string)
+  {
+    const result = await this.sessionsRepository
+        .createQueryBuilder()
+        .update(Session)
+        .set({
+            currentParticipants: () => '"currentParticipants" + 1'
+        })
+        .where("id = :sessionId", { sessionId })
+        .andWhere("status = :status", { status: SessionStatus.UPCOMING })
+        .andWhere('"currentParticipants" < "maxParticipants"')
+        .returning(["id","price"])   
+        .execute();
+
+    const updatedRow = result.raw?.[0];
+    const event = new CheckSessionsAvailableResponse({
+      requestId,
+      sessionId,
+      price: updatedRow?.price || 0,
+    });
+    if(result.affected === 0)
+    {
+      event.available = false;
+      event.failure_reason = 'Session is either full, not upcoming, or does not exist';
+      this.appLogger.logError({
+        functionName: 'handleCheckSessionsAvailable',
+        problem: `Session ${sessionId} is either full, not upcoming, or does not exist when checking availability for requestId ${requestId}`,
+        additionalData: { sessionId, requestId },
+        error: new Error(event.failure_reason),
+      });
+    }
+    else event.available = true;
+    this.kafka.emit(KAFKA_TOPICS.CHECK_SESSIONS_AVAILABLE_RESPONSE, event); 
+    this.appLogger.logInfo({
+      functionName: 'handleCheckSessionsAvailable',
+      message: `session is available: ${event.available} for session ${sessionId} and requestId ${requestId}`,
+      additionalData: { sessionId, requestId, available: event.available, price: event.price },
+    });
+  }
+
+  async handleReservationCancelled(sessionId: string)
+  {
+
+    const allowedTime = new Date(Date.now() - 12 * 60 * 60 * 1000);//allow cancellation if session start time is more than 12 hours away
+    await this.sessionsRepository
+        .createQueryBuilder('session')
+        .update(Session)
+        .set({
+            currentParticipants: () => '"currentParticipants" - 1'
+        })
+        .where("id = :sessionId", { sessionId })
+        .andWhere("status = :status", { status: SessionStatus.UPCOMING })
+        .andWhere('"currentParticipants" > 0')
+        .andWhere('"startTime" > :allowedTime', { allowedTime: allowedTime.toISOString() })
+        .execute();
+      this.appLogger.logInfo({
+        functionName: 'handleReservationCancelled',
+        message: `Handled reservation cancellation for session ${sessionId}`,
+        additionalData: { sessionId },
+      });
+  }
 }

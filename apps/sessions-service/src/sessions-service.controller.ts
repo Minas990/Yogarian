@@ -1,11 +1,12 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { SessionsService } from './services/sessions.service';
-import { CurrentUser, JwtAuthGuard,  type UserTokenPayload, UserDeletedEvent, ImagesSessionCreatedEvent, ImagesSessionDeletedEvent } from '@app/common';
+import { CurrentUser, JwtAuthGuard,  type UserTokenPayload, UserDeletedEvent, ImagesSessionCreatedEvent, ImagesSessionDeletedEvent, ReservationCancelledEvent } from '@app/common';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
+import { CheckSessionsAvailableCommand } from '@app/common/commands/sessions,command';
 
 @Controller('sessions')
 export class SessionsServiceController {
@@ -60,5 +61,15 @@ export class SessionsServiceController {
       return this.sessionsService.handleSessionImagesDeleted(event.userId,event.sessionId,event.photoIds);
     }
 
-  
+    @EventPattern(KAFKA_TOPICS.CHECK_SESSIONS_AVAILABLE_COMMAND)
+    async handleCheckSessionsAvailable(@Payload() data: CheckSessionsAvailableCommand)
+    {
+      return this.sessionsService.handleCheckSessionsAvailable(data.sessionId,data.requestId);
+    }
+
+    @EventPattern(KAFKA_TOPICS.RESERVATION_CANCELLED)
+    async handleReservationCancelled(@Payload() data: ReservationCancelledEvent)
+    {
+      return this.sessionsService.handleReservationCancelled(data.sessionId);
+    }
 }

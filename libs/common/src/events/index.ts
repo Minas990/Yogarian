@@ -9,3 +9,5 @@ export * from './session.event';
 export * from './user-follow.event';
 export * from './user-image';
 export * from './user-profile-updated.event';
+export * from './reservations.event';
+export * from './payment.event';

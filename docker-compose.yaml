@@ -197,6 +197,19 @@ services:
       - postgres-notifications-data:/var/lib/postgresql/data
     networks:
       - yoga-network
+  postgres-payments:
+    image: postgres:15.1-alpine
+    container_name: yoga-postgres-payments
+    ports:
+      - "5442:5432"
+    environment:
+      POSTGRES_USER: payments
+      POSTGRES_PASSWORD: payments
+      POSTGRES_DB: payments
+    volumes:
+      - postgres-payments-data:/var/lib/postgresql/data
+    networks:
+      - yoga-network
 
   redis:
     image: redis:7.2-alpine
@@ -225,4 +238,5 @@ volumes:
   postgres-search-data:
   postgres-search-slave-data:
   postgres-notifications-data:
+  postgres-payments-data:
   redis-data:
