@@ -4,7 +4,7 @@ import { User } from './models/User.entity';
 import { Repository } from 'typeorm';
 import { Session } from './models/session.model';
 import { Reservation } from './models/reservations.model';
-import { AppLoggerService, Geometry, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent } from '@app/common';
+import { AppLoggerService, Geometry, ReservationCancelledEvent, ReservationConfirmedEvent, ReservationStatus, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent } from '@app/common';
 import { UserProfileUpdatedEvent } from '@app/common/events/user-profile-updated.event';
 import { UserFollowEvent } from '@app/common/events/user-follow.event';
 import { Follow } from './models/follow.model';
@@ -17,6 +17,8 @@ import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
 import { ClientKafka } from '@nestjs/microservices';
 import { SessionNotifyEvent } from '@app/common/events/session-notify.event';
 import { randomBytes } from 'crypto';
+import { RefundReservationResponse } from '@app/common/commands/payment.command';
+import { RefundConfirmedEvent, RefundFailedEvent } from '@app/common/events/reservations.event';
 
 @Injectable()
 export class SearchServiceService implements OnModuleInit {
@@ -399,6 +401,7 @@ export class SearchServiceService implements OnModuleInit {
       };
   }
 
+
   async getMySessionsTrainer(userId: string, limit: number, page: number = 0)
   {
     const qb = this.sessionRepo.createQueryBuilder('session');
@@ -554,4 +557,53 @@ async getFollowers(userId: string, limit :number, page :number = 0)
       .where('"session"."sessionId" IN (:...sessionsId)', { sessionsId })
       .execute();
   }
+
+  async handleReservationConfirmed(data: ReservationConfirmedEvent)
+  {
+    const session = await this.reservationRepo.findOne({where:{sessionId: data.sessionId, userId: data.userId}});
+    console.log(session);
+    if(session) return ;//duplication of event,
+    return this.reservationRepo.save({
+      createdAt:data.createdAt,
+      sessionId: data.sessionId,
+      userId: data.userId,
+      locked_price: data.price,
+      state: ReservationStatus.CONFIRMED,
+      requestId: data.requestId,
+    });
+  }
+
+  async handleReservationCancelled(data: ReservationCancelledEvent)
+  {
+    await this.reservationRepo.update(
+      { requestId: data.requestId, sessionId: data.sessionId },
+      { state: ReservationStatus.CANCELLED },
+    );
+  }
+
+  async handleRefundReservationResponse(data: RefundReservationResponse)
+  {
+    if (!data.success) return;
+    await this.reservationRepo.update(
+      { requestId: data.requestId, sessionId: data.sessionId },
+      { state: ReservationStatus.REFUND_PENDING },
+    );
+  }
+
+  async handleRefundReservationConfirmed(data: RefundConfirmedEvent)
+  {
+    await this.reservationRepo.update(
+      { requestId: data.requestId, sessionId: data.sessionId, userId: data.userId },
+      { state: ReservationStatus.REFUNDED },
+    );
+  }
+
+  async handleRefundReservationFailed(data: RefundFailedEvent)
+  {
+    await this.reservationRepo.update(
+      { requestId: data.requestId, sessionId: data.sessionId, userId: data.userId },
+      { state: ReservationStatus.CONFIRMED },
+    );
+  }
+
 }

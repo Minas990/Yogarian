@@ -4,10 +4,9 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { KAFKA_BROKER } from '@app/kafka';
 import { PaymentServiceModule } from './payments-service.module';
-import * as bodyParser from 'body-parser';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(PaymentServiceModule);
+  const app = await NestFactory.create<NestExpressApplication>(PaymentServiceModule, { rawBody: true });
   app.set('trust proxy', 1);
   const cs = app.get(ConfigService);
 
@@ -24,7 +23,6 @@ async function bootstrap() {
     },
   });
 
-  app.use('/payment/webhook',bodyParser.raw({type: 'application/json'}));
   await app.startAllMicroservices();
   await app.listen(cs.get('PAYMENTS_PORT') || 8009);
 }

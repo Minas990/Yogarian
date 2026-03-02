@@ -10,6 +10,9 @@ import { RateLimiterModule } from '@app/common/rate-limiter/rate-limiter.module'
 import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
 import { JwtAuthGuard, JwtStrategy, RealIpThrottlerGuard } from '@app/common';
 import { BookThrottleGuard, CancelThrottleGuard } from './guards/rate-limit.guard';
+import { BullModule } from '@nestjs/bullmq';
+import { QUEUE_CONSTANTS } from './queue/queues.constants';
+import { RefundTimeoutProcessor } from './queue/refund-timeout.processor';
 
 
 @Module({
@@ -39,9 +42,21 @@ import { BookThrottleGuard, CancelThrottleGuard } from './guards/rate-limit.guar
             ],
           }),
         }),
+    BullModule.forRootAsync({
+      inject: [ConfigService],
+      useFactory: (cs: ConfigService) => ({
+        connection: {
+          host: cs.getOrThrow<string>('REDIS_HOST'),
+          port: cs.getOrThrow<number>('REDIS_PORT'),
+        },
+      }),
+    }),
+    BullModule.registerQueue({
+      name: QUEUE_CONSTANTS.REFUND_TIMEOUT,
+    }),
 
   ],
   controllers: [ReservationsServiceController],
-  providers: [ReservationsServiceService,JwtStrategy,JwtAuthGuard,HttpOnlyJwtAuthGuard,BookThrottleGuard,CancelThrottleGuard,RealIpThrottlerGuard],
+  providers: [ReservationsServiceService,JwtStrategy,JwtAuthGuard,HttpOnlyJwtAuthGuard,BookThrottleGuard,CancelThrottleGuard,RealIpThrottlerGuard,RefundTimeoutProcessor],
 })
 export class ReservationsServiceModule {}

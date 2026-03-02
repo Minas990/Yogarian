@@ -47,6 +47,14 @@ export const KAFKA_TOPICS = {
     PAYMENT_CONFIRMED: 'payment.confirmed',
     PAYMENT_FAILED: 'payment.failed',
 
+    RESERVATION_CONFIRMED: 'reservation.confirmed',//for search service 
+
+    REFUND_RESERVATION_COMMAND: 'refund.reservation.command',
+    REFUND_RESERVATION_RESPONSE: 'refund.reservation.response',
+    REFUND_RESERVATION_CONFIRMED: 'refund.reservation.confirmed',
+    REFUND_RESERVATION_FAILED: 'refund.reservation.failed',
+    CHECK_SESSION_UPCOMING_FOR_REFUND_COMMAND: 'check.session.upcoming.for.refund.command',
+    CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE: 'check.session.upcoming.for.refund.response',
     //removed location creation/update events for gRPC migration
 } as const;
 

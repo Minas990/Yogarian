@@ -2,7 +2,7 @@ import { BadRequestException, Controller, Get, Param, ParseUUIDPipe, Query, UseG
 import { SearchServiceService } from './search-service.service';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
-import { CurrentUser, JwtAuthGuard, Roles, SessionCompletedEvent, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionOngoingEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent,type UserTokenPayload } from '@app/common';
+import { CurrentUser, JwtAuthGuard, ReservationCancelledEvent, ReservationConfirmedEvent, Roles, SessionCompletedEvent, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesDeletionApprovedEvent, SessionOngoingEvent, SessionUpdatedEvent, UserDeletedEvent, UserEmailUpdatedEvent, UserRegisteredEvent,type UserTokenPayload } from '@app/common';
 import { UserProfileUpdatedEvent } from '@app/common/events/user-profile-updated.event';
 import { UserFollowEvent } from '@app/common/events/user-follow.event';
 import { UserImageProfile } from '@app/common/events/user-image';
@@ -10,6 +10,8 @@ import { DeleteLocationUserEvent, LocationUserEvent, UpdateLocationUserEvent } f
 import { FindSessionsDto } from './types/find-sessions.type';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { SessionStatus } from '@app/common/types/sessions-status.type';
+import { RefundReservationResponse } from '@app/common/commands/payment.command';
+import { RefundConfirmedEvent, RefundFailedEvent } from '@app/common/events/reservations.event';
 
 @Controller('search')
 export class SearchServiceController {
@@ -177,6 +179,7 @@ export class SearchServiceController {
     }
   }
 
+
   @UseGuards(LongThrottleGuard,JwtAuthGuard)
   @Get('followers')
   async getMyFollowers(@CurrentUser() user:UserTokenPayload,@Query('limit') limit:number,@Query('page') page:number)
@@ -212,5 +215,33 @@ export class SearchServiceController {
     return this.searchServiceService.getTrainerById(id);
   }
 
+  @EventPattern(KAFKA_TOPICS.RESERVATION_CONFIRMED)
+  async handleReservationConfirmed(@Payload() data: ReservationConfirmedEvent)
+  {
+    return this.searchServiceService.handleReservationConfirmed(data);
+  }
 
+  @EventPattern(KAFKA_TOPICS.RESERVATION_CANCELLED)
+  async handleReservationCancelled(@Payload() data: ReservationCancelledEvent)
+  {
+    return this.searchServiceService.handleReservationCancelled(data);
+  }
+
+  @EventPattern(KAFKA_TOPICS.REFUND_RESERVATION_RESPONSE)
+  async handleRefundReservationResponse(@Payload() data: RefundReservationResponse)
+  {
+    return this.searchServiceService.handleRefundReservationResponse(data);
+  }
+
+  @EventPattern(KAFKA_TOPICS.REFUND_RESERVATION_CONFIRMED)
+  async handleRefundReservationConfirmed(@Payload() data: RefundConfirmedEvent)
+  {
+    return this.searchServiceService.handleRefundReservationConfirmed(data);
+  }
+
+  @EventPattern(KAFKA_TOPICS.REFUND_RESERVATION_FAILED)
+  async handleRefundReservationFailed(@Payload() data: RefundFailedEvent)
+  {
+    return this.searchServiceService.handleRefundReservationFailed(data);
+  }
 }

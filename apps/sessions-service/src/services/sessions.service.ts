@@ -13,7 +13,7 @@ import { firstValueFrom } from 'rxjs';
 import { InjectQueue } from '@nestjs/bullmq';
 import { QUEUE_CONSTANTS } from '../queue/queues.constants';
 import { Queue } from 'bullmq';
-import { CheckSessionsAvailableResponse } from '@app/common/commands/sessions,command';
+import { CheckSessionUpcomingForRefundResponse, CheckSessionsAvailableResponse } from '@app/common/commands/sessions,command';
 
 @Injectable()
 export class SessionsService implements OnModuleInit {
@@ -367,7 +367,7 @@ async moveOnGoingSessionsToCompleted(): Promise<string[]> {
   async handleReservationCancelled(sessionId: string)
   {
 
-    const allowedTime = new Date(Date.now() - 12 * 60 * 60 * 1000);//allow cancellation if session start time is more than 12 hours away
+    const allowedTime = new Date(Date.now() + 12 * 60 * 60 * 1000);//allow cancellation only if session start time is more than 12 hours away
     await this.sessionsRepository
         .createQueryBuilder('session')
         .update(Session)
@@ -384,5 +384,104 @@ async moveOnGoingSessionsToCompleted(): Promise<string[]> {
         message: `Handled reservation cancellation for session ${sessionId}`,
         additionalData: { sessionId },
       });
+  }
+
+  async handleRefundReservationConfirmed(sessionId: string)
+  {
+    this.appLogger.logInfo({
+      functionName: 'handleRefundReservationConfirmed',
+      message: `Refund confirmed, decrementing participants for session ${sessionId}`,
+      additionalData: { sessionId },
+    });
+
+    const result = await this.sessionsRepository
+        .createQueryBuilder('session')
+        .update(Session)
+        .set({
+            currentParticipants: () => '"currentParticipants" - 1'
+        })
+        .where("id = :sessionId", { sessionId })
+        .andWhere('"currentParticipants" > 0')
+        .execute();
+
+    if(result.affected === 0) {
+      this.appLogger.logError({
+        functionName: 'handleRefundReservationConfirmed',
+        problem: `Could not decrement participants for session ${sessionId} (session may not exist or have 0 participants)`,
+        error: new Error('No rows updated'),
+        additionalData: { sessionId, affectedRows: result.affected },
+      });
+    } else {
+      this.appLogger.logInfo({
+        functionName: 'handleRefundReservationConfirmed',
+        message: `Successfully decremented participants for session ${sessionId} (${result.affected} row(s) updated)`,
+        additionalData: { sessionId, affectedRows: result.affected },
+      });
+    }
+  }
+
+  async handleCheckSessionUpcomingForRefund(sessionId: string, requestId: string)
+  {
+    this.appLogger.logInfo({
+      message: `Checking if session is upcoming for refund (request: ${requestId}, session: ${sessionId})`,
+      functionName: 'handleCheckSessionUpcomingForRefund',
+      additionalData: { sessionId, requestId },
+    });
+
+    const session = await this.sessionsRepository.findOne({ id: sessionId });
+    const event = new CheckSessionUpcomingForRefundResponse({
+      sessionId,
+      requestId,
+      canRefund: false,
+    });
+
+    if(!session)
+    {
+      this.appLogger.logError({
+        problem: `Session does not exist for refund check (session: ${sessionId}, request: ${requestId})`,
+        functionName: 'handleCheckSessionUpcomingForRefund',
+        error: new Error('Session not found'),
+        additionalData: { sessionId, requestId },
+      });
+      event.failure_reason = 'Session does not exist';
+      this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
+      return;
+    }
+    if(session.status !== SessionStatus.UPCOMING)
+    {
+      this.appLogger.logInfo({
+        message: `Session is not upcoming, cannot refund (session: ${sessionId}, status: ${session.status}, request: ${requestId})`,
+        functionName: 'handleCheckSessionUpcomingForRefund',
+        additionalData: { sessionId, sessionStatus: session.status, requestId },
+      });
+      event.failure_reason = `Session is not upcoming (current status: ${session.status})`;
+      this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
+      return;
+    }
+
+    const now = new Date();
+    const sessionStart = new Date(session.startTime);
+    const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+
+    if (sessionStart <= oneHourFromNow) {
+      const minutesUntilStart = Math.round((sessionStart.getTime() - now.getTime()) / 60000);
+      this.appLogger.logInfo({
+        message: `Refund denied - session is within the next hour (${Math.max(0, minutesUntilStart)} minutes away) (session: ${sessionId}, request: ${requestId})`,
+        functionName: 'handleCheckSessionUpcomingForRefund',
+        additionalData: { sessionId, requestId, sessionStart: sessionStart.toISOString(), now: now.toISOString(), minutesUntilStart },
+      });
+      event.failure_reason = `Cannot refund - session starts in ${Math.max(0, minutesUntilStart)} minutes`;
+      this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
+      return;
+    }
+
+    this.appLogger.logInfo({
+      message: `Session validation passed for refund, session is upcoming (session: ${sessionId}, request: ${requestId})`,
+      functionName: 'handleCheckSessionUpcomingForRefund',
+      additionalData: { sessionId, requestId, canRefund: true },
+    });
+    event.canRefund = true;
+    event.failure_reason = undefined;
+    this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
   }
 }

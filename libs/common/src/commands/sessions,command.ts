@@ -27,3 +27,23 @@ export class CheckSessionsAvailableResponse extends SessionCommand
     price: number;
     failure_reason?: any;
 }
+
+  export class CheckSessionUpcomingForRefundCommand extends SessionCommand
+  {
+    constructor(partial: Partial<CheckSessionUpcomingForRefundCommand>)
+    {
+      super(partial);
+      Object.assign(this, partial);
+    }
+  }
+
+  export class CheckSessionUpcomingForRefundResponse extends SessionCommand
+  {
+    constructor(partial: Partial<CheckSessionUpcomingForRefundResponse>)
+    {
+      super(partial);
+      Object.assign(this, partial);
+    }
+    canRefund: boolean;
+    failure_reason?: string;
+  }

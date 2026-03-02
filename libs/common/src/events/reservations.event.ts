@@ -5,6 +5,7 @@ export class ReservationEvent
     Object.assign(this, partial);
   }
   sessionId: string;
+  requestId:string
 }
 
 export class ReservationCancelledEvent extends ReservationEvent
@@ -14,5 +15,39 @@ export class ReservationCancelledEvent extends ReservationEvent
     super(partial);
     Object.assign(this, partial);
   }
-  requestId:string;
+}
+
+export class ReservationConfirmedEvent extends ReservationEvent
+{
+  constructor(partial: Partial<ReservationConfirmedEvent>)
+  {
+    super(partial);
+    Object.assign(this, partial);
+  }
+  userId: string;
+  price: number
+  createdAt: Date;
+}
+
+export class RefundConfirmedEvent extends ReservationEvent
+{
+  constructor(partial: Partial<RefundConfirmedEvent>)
+  {
+    super(partial);
+    Object.assign(this, partial);
+  }
+  userId: string;
+  price: number
+  createdAt: Date;
+}
+
+export class RefundFailedEvent extends ReservationEvent
+{
+  constructor(partial: Partial<RefundFailedEvent>)
+  {
+    super(partial);
+    Object.assign(this, partial);
+  }
+  userId: string;
+  failure_reason: string;
 }

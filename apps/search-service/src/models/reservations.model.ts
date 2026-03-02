@@ -9,6 +9,8 @@ import { ReservationStatus } from "@app/common/types/reservation-status.type";
 @Index('idx_reservation_price', ['locked_price'])
 @Index('idx_startedAt', ['createdAt'])
 export class Reservation {
+    @Column('uuid',{unique: true})
+    requestId: string;
     @ManyToOne(() => Session, session => session.reservations, { eager: true, onDelete: 'NO ACTION' })//soft 
     @JoinColumn({ name: 'sessionId' })
     session: Session;

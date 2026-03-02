@@ -20,18 +20,12 @@ export class Reservation
 
     @Column({nullable:true})
     locked_price: number;//the price at the momeent of reservation creation
-    
-    @Column({nullable:true})
-    payment_intent_id: string;
 
     @Column({nullable:true})
     checkout_url: string;//stripe checkout url
 
-    @Column({nullable:true,type:'json'})
-    failure_reason : any;//if reservation failed, the reason will be stored here
-
     @Column({nullable:true})
-    expires_at: Date;//when the reservation will expire if not confirmed
+    failure_reason : string;//if reservation failed, the reason will be stored here
 
     @CreateDateColumn()
     createdAt: Date;
