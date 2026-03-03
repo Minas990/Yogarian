@@ -4,6 +4,7 @@ import { EventPattern } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { OtpSentEvent, PasswordResetTokenSentEvent, UserRegisteredEvent } from '@app/common';
 import { SessionNotifyEvent } from '@app/common/events/session-notify.event';
+import { SessionCancelledNotifyEvent } from '@app/common/events/session-cancelled-notify.event';
 import { NotificationsService } from './notifications-service.service';
 
 @Controller()
@@ -48,6 +49,37 @@ export class NotificationsServiceController {
       { resetToken: data.resetToken },
       data.userId
     );
+  }
+
+  @EventPattern(KAFKA_TOPICS.SESSION_CANCELLED_NOTIFICATION)
+  async handleSessionCancelled(event: SessionCancelledNotifyEvent): Promise<void> {
+    try {
+      await this.notiService.createEventWithTasks(
+        {
+          eventId: event.eventId,
+          eventType: KAFKA_TOPICS.SESSION_CANCELLED_NOTIFICATION,
+          emitter: event.sessionId,
+          payload: event,
+        },
+        event.users.map(email => ({
+          email,
+          subject: 'Session Cancelled',
+          templateName: 'sessionCancelledNotification',
+          userId: event.sessionId,
+          priority: 1, // high priority - users need to know about refund
+          payload: {
+            message: event.message,
+            sessionId: event.sessionId,
+            sessionTitle: event.sessionTitle,
+          },
+        }))
+      );
+    } 
+    catch (error) {
+      if (error.code === '23505') 
+        return; 
+      console.error('Error creating session cancelled notification:', error);
+    }
   }
 
   @EventPattern(KAFKA_TOPICS.NEW_SESSION_NOTIFICATION)

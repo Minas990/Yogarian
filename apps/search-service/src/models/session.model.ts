@@ -21,7 +21,7 @@ export class Session
     @PrimaryColumn('uuid')
     sessionId: string;
     @JoinColumn({name:'userId'})
-    @ManyToOne(() => User, user => user.userId, { onDelete: 'NO ACTION',eager:false }) // there will be an event called when a user is deleted and this event will call delete session event to delete all sessions of the user
+    @ManyToOne(() => User, user => user.userId, { onDelete: 'CASCADE',eager:false }) // there will be an event called when a user is deleted and this event will call delete session event to delete all sessions of the user
     user : User;
     @Column('uuid')
     userId: string;//the fk of the user who created the session

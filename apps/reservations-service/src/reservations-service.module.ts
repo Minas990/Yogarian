@@ -1,6 +1,5 @@
 import { Module } from '@nestjs/common';
 import { ReservationsServiceController } from './reservations-service.controller';
-import { ReservationsServiceService } from './reservations-service.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { DatabaseModule } from '@app/database';
 import { Reservation } from './models/reservation.model';
@@ -13,6 +12,8 @@ import { BookThrottleGuard, CancelThrottleGuard } from './guards/rate-limit.guar
 import { BullModule } from '@nestjs/bullmq';
 import { QUEUE_CONSTANTS } from './queue/queues.constants';
 import { RefundTimeoutProcessor } from './queue/refund-timeout.processor';
+import { RefundAllUsersProcessor } from './queue/refund-all-users.processor';
+import { ReservationsService } from './reservations.service';
 
 
 @Module({
@@ -52,11 +53,13 @@ import { RefundTimeoutProcessor } from './queue/refund-timeout.processor';
       }),
     }),
     BullModule.registerQueue({
-      name: QUEUE_CONSTANTS.REFUND_TIMEOUT,
+      name: QUEUE_CONSTANTS.REFUND_TIMEOUT,//for stripe webhooks refund 
     }),
-
+    BullModule.registerQueue({
+      name: QUEUE_CONSTANTS.REFUND_ALL_USERS,//see reservations controller method : handleSessionDeleted
+    })
   ],
   controllers: [ReservationsServiceController],
-  providers: [ReservationsServiceService,JwtStrategy,JwtAuthGuard,HttpOnlyJwtAuthGuard,BookThrottleGuard,CancelThrottleGuard,RealIpThrottlerGuard,RefundTimeoutProcessor],
+  providers: [ReservationsService,JwtStrategy,JwtAuthGuard,HttpOnlyJwtAuthGuard,BookThrottleGuard,CancelThrottleGuard,RealIpThrottlerGuard,RefundTimeoutProcessor,RefundAllUsersProcessor],
 })
 export class ReservationsServiceModule {}

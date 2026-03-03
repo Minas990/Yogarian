@@ -7,6 +7,7 @@ import { UpdateSessionDto } from './dto/update-session.dto';
 import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { CheckSessionUpcomingForRefundCommand, CheckSessionsAvailableCommand } from '@app/common/commands/sessions,command';
+import { SessionDeletedEvent } from '@app/common';
 
 @Controller('sessions')
 export class SessionsServiceController {
@@ -83,5 +84,11 @@ export class SessionsServiceController {
     async handleCheckSessionUpcomingForRefund(@Payload() data: CheckSessionUpcomingForRefundCommand)
     {
       return this.sessionsService.handleCheckSessionUpcomingForRefund(data.sessionId, data.requestId);
+    }
+
+    @EventPattern(KAFKA_TOPICS.ALL_USERS_REFUNDED)
+    async handleAllUsersRefunded(@Payload() data: SessionDeletedEvent)
+    {
+      return this.sessionsService.handleAllUsersRefunded(data.sessionId);
     }
 }

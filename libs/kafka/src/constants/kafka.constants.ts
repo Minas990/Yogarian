@@ -23,7 +23,8 @@ export const KAFKA_TOPICS = {
     SESSION_CREATED: 'session.created',
     SESSION_DELETED: 'session.deleted',
     SESSION_UPDATED: 'session.updated',
-    
+    SESSION_CANCELLED: 'session.cancelled',//this for search service to listen for and update the session immediately to cancelled
+
     SESSIONS_ONGOING: 'sessions.ongoing',
     SESSIONS_COMPLETED: 'sessions.completed',
 
@@ -55,6 +56,12 @@ export const KAFKA_TOPICS = {
     REFUND_RESERVATION_FAILED: 'refund.reservation.failed',
     CHECK_SESSION_UPCOMING_FOR_REFUND_COMMAND: 'check.session.upcoming.for.refund.command',
     CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE: 'check.session.upcoming.for.refund.response',
+
+    REFUND_ALL_USERS: 'refund.all.users',//for refunding all reservations for a session if it's upcoming, when the session is deleted
+    ALL_USERS_REFUNDED: 'all.users.refunded',//after refunding all users for a session, we will emit this event to tell the sessions service to delete the session permanently
+    NOTIFICATIONS_YOUR_SESSION_CANCELLED: 'notifications.your.session.cancelled',
+    SESSION_CANCELLED_NOTIFICATION: 'session.cancelled.notification',
+    
     //removed location creation/update events for gRPC migration
 } as const;
 

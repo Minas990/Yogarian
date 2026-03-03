@@ -51,6 +51,9 @@ export class User
     @Column({ default: 0 }) // for user
     followingCount: number;
     //i made those bcs of the slow count(*)
+
+    @Column({default:true})
+    isActive: boolean;
     constructor(entity?: Partial<User>) {
         Object.assign(this, entity);
     }

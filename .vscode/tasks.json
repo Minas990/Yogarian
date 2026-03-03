@@ -99,20 +99,72 @@
       },
       "problemMatcher": []
     },
-    {
-      "label": "dev:all-services",
-      "dependsOrder": "parallel",
-      "dependsOn": [
-        "dev:notifications-service",
-        "dev:auth-service",
-        "dev:users-service",
-        "dev:media-service",
-        "dev:location-service",
-        "dev:sessions-service",
-        "dev:search-service",
-      ],
-      "problemMatcher": []
-    },
+      {
+        "label": "dev:payments-service",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "start:dev", "payments-service"],
+        "isBackground": true,
+        "presentation": {
+          "reveal": "always",
+          "panel": "new",
+          "group": "services",
+          "clear": true
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "dev:reservations-service",
+        "type": "shell",
+        "command": "npm",
+        "args": ["run", "start:dev", "reservations-service"],
+        "isBackground": true,
+        "presentation": {
+          "reveal": "always",
+          "panel": "new",
+          "group": "services",
+          "clear": true
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "dev:all-services",
+        "dependsOrder": "parallel",
+        "dependsOn": [
+          "dev:all-services-group1",
+          "dev:all-services-group2"
+        ],
+        "problemMatcher": []
+      },
+      {
+        "label": "dev:all-services-group1",
+        "dependsOrder": "parallel",
+        "dependsOn": [
+          "dev:notifications-service",
+          "dev:auth-service",
+          "dev:users-service",
+          "dev:media-service",
+          "dev:location-service"
+        ],
+        "presentation": {
+          "panel": "shared"
+        },
+        "problemMatcher": []
+      },
+      {
+        "label": "dev:all-services-group2",
+        "dependsOrder": "parallel",
+        "dependsOn": [
+          "dev:payments-service",
+          "dev:sessions-service",
+          "dev:search-service",
+          "dev:reservations-service"
+        ],
+        "presentation": {
+          "panel": "new"
+        },
+        "problemMatcher": []
+      },
     {
       "label": "dev:kill-services",
       "type": "process",

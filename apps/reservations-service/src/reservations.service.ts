@@ -1,4 +1,4 @@
-import { AppLoggerService, RefundConfirmedEvent, RefundFailedEvent, ReservationCancelledEvent, ReservationConfirmedEvent } from '@app/common';
+import { AppLoggerService, RefundAllUsersEvent, RefundConfirmedEvent, RefundFailedEvent, ReservationCancelledEvent, ReservationConfirmedEvent } from '@app/common';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
 import { ConflictException, Inject, Injectable, NotFoundException } from '@nestjs/common';
 import { ClientKafka } from '@nestjs/microservices';
@@ -15,14 +15,28 @@ import { Queue } from 'bullmq';
 
 
 @Injectable()
-export class ReservationsServiceService {
+export class ReservationsService {
   constructor(
     private readonly logger: AppLoggerService,
     @Inject(KAFKA_SERVICE) private readonly kafkaClient: ClientKafka,
     @InjectRepository(Reservation) private readonly reservationRepository: Repository<Reservation>,
     @InjectQueue(QUEUE_CONSTANTS.REFUND_TIMEOUT) private readonly refundTimeoutQueue: Queue,
-  ){}
+    @InjectQueue(QUEUE_CONSTANTS.REFUND_ALL_USERS) private readonly refundAllUsersQueue: Queue,
+  ){
 
+    
+  }
+
+  async onModuleInit() {
+    const delayedJobs = await this.refundAllUsersQueue.getJobs(['delayed']);
+    console.log('Delayed jobs:', delayedJobs.map(job => ({
+      id: job.id,
+      name: job.name,
+      data: job.data,
+      timestamp: job.timestamp,
+      delay: job.opts.delay,
+    })));
+  }
   async book(userId: string, sessionId: string)
   {
     const oldReservation = await this.getReservation(userId,sessionId).catch(() => null);
@@ -147,7 +161,6 @@ export class ReservationsServiceService {
 
   async handlePaymentFailed(data: PaymentFailedEvent)
   {
-    console.log(data);
     await this.updateReservation(data.requestId,{
       status: ReservationStatus.FAILED,
       failure_reason: data.failure_reason,
@@ -311,5 +324,27 @@ export class ReservationsServiceService {
       status: ReservationStatus.CONFIRMED,
       failure_reason: data.failure_reason || "Unknown failure reason"
     });
+  }
+
+  async handleSessionDeleted(sessionId: string)
+  {
+    const reservationsConfirmed = await this.reservationRepository.findBy({sessionId, status: ReservationStatus.CONFIRMED});
+    this.refundAllUsersQueue.add('refund-all-users', { sessionId }, { removeOnComplete: true, delay: 32 * 60 * 1000, jobId: `refund-all-users_${sessionId}` }); //why this number ?
+    for(const reservation of reservationsConfirmed)    {
+      reservation.status = ReservationStatus.REFUND_PENDING;
+      await this.reservationRepository.save(reservation);
+      this.kafkaClient.emit(KAFKA_TOPICS.REFUND_RESERVATION_COMMAND, new RefundReservationCommand({
+        sessionId,
+        userId: reservation.userId,
+        requestId: reservation.requestId,
+      }));
+    }
+    const users = reservationsConfirmed.map(r => r.userId); 
+    //bcs of stripe checkout session take 30 minutes to expire,
+    //so after 30 minutes from session deletion if any checkout exist will either be expired or confirmed and refunded via this job 
+    //at the worst part in sessions service the user can ask for a refund event if the start time has passed only if the session is caceled 
+    //so all are ok 
+    this.kafkaClient.emit(KAFKA_TOPICS.SESSION_CANCELLED,{sessionId});
+    this.kafkaClient.emit(KAFKA_TOPICS.NOTIFICATIONS_YOUR_SESSION_CANCELLED, { sessionId, userIds: users });
   }
 }

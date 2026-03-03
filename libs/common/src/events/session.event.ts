@@ -37,6 +37,14 @@ export class SessionDeletedEvent  {
     sessionId: string;
 }
 
+export class RefundAllUsersEvent  extends SessionDeletedEvent 
+{
+    constructor(partial: Partial<RefundAllUsersEvent>) {
+        super(partial);
+        Object.assign(this, partial);
+    }
+}
+
 export class SessionOngoingEvent  
 {
     constructor(partial: Partial<SessionOngoingEvent>) 

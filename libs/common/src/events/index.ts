@@ -11,3 +11,4 @@ export * from './user-image';
 export * from './user-profile-updated.event';
 export * from './reservations.event';
 export * from './payment.event';
+export * from './session-cancelled-notify.event';

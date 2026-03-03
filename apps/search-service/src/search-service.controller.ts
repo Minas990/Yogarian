@@ -123,7 +123,11 @@ export class SearchServiceController {
     return this.searchServiceService.handleSessionDeleted(data);
   }
   
-
+  @EventPattern(KAFKA_TOPICS.SESSION_CANCELLED)
+  async handleSessionCancelled(@Payload() data: {sessionId:string})
+  {
+    return this.searchServiceService.handleSessionCancelled(data.sessionId);
+  }
   @EventPattern(KAFKA_TOPICS.SESSION_IMAGES_CREATION_APPROVED)
   async handleSessionImagesCreationApproved(@Payload() data: SessionImagesCreationApprovedEvent)
   {
@@ -139,7 +143,6 @@ export class SearchServiceController {
   @EventPattern(KAFKA_TOPICS.SESSIONS_ONGOING)
   async handleSessionsOngoing(@Payload() data: SessionOngoingEvent)
   {
-    console.log('Handling sessions ongoing event for session id:', data.sessionsId);
     return this.searchServiceService.changeSessionStatus(data.sessionsId,SessionStatus.ONGOING);
   }
 
@@ -244,4 +247,11 @@ export class SearchServiceController {
   {
     return this.searchServiceService.handleRefundReservationFailed(data);
   }
+
+  @EventPattern(KAFKA_TOPICS.NOTIFICATIONS_YOUR_SESSION_CANCELLED)
+  async handleSessionCancelledNotification(@Payload() data: { sessionId: string; userIds: string[] })
+  {
+    return this.searchServiceService.handleSessionCancelledNotification(data.sessionId, data.userIds);
+  }
+
 }

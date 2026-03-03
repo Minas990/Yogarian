@@ -24,7 +24,7 @@ export class CreateSessionDto {
 
   @IsDate()
   @Type(() => Date)
-  // @ValidStartTime()
+  @ValidStartTime()
   startTime: Date;
 
   @IsNumber()

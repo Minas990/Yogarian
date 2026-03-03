@@ -11,12 +11,12 @@ import { ReservationStatus } from "@app/common/types/reservation-status.type";
 export class Reservation {
     @Column('uuid',{unique: true})
     requestId: string;
-    @ManyToOne(() => Session, session => session.reservations, { eager: true, onDelete: 'NO ACTION' })//soft 
+    @ManyToOne(() => Session, session => session.reservations, { eager: true, onDelete: 'CASCADE' })//soft 
     @JoinColumn({ name: 'sessionId' })
     session: Session;
     @PrimaryColumn('uuid')
     sessionId: string;
-    @ManyToOne(() => User, user => user.reservations, { eager: false, onDelete: 'NO ACTION' })//there will be an event for that 
+    @ManyToOne(() => User, user => user.reservations, { eager: false, onDelete: 'CASCADE' })//there will be an event for that 
     @JoinColumn({ name: 'userId' })
     user: User;
     @PrimaryColumn('uuid')

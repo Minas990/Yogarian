@@ -19,6 +19,7 @@ import { SessionNotifyEvent } from '@app/common/events/session-notify.event';
 import { randomBytes } from 'crypto';
 import { RefundReservationResponse } from '@app/common/commands/payment.command';
 import { RefundConfirmedEvent, RefundFailedEvent } from '@app/common/events/reservations.event';
+import { SessionCancelledNotifyEvent } from '@app/common/events/session-cancelled-notify.event';
 
 @Injectable()
 export class SearchServiceService implements OnModuleInit {
@@ -58,7 +59,9 @@ export class SearchServiceService implements OnModuleInit {
 
   async handleUserDeleted(data: UserDeletedEvent)
   {
-    await this.userRepo.delete({userId: data.userId});
+    await this.userRepo.update({userId: data.userId},{isActive: false});//what a violation to the gdpr :D,sry but this will prevent disasters in my code ,
+    //ill restructure the search service to make the schema denormalized  and has no relations and also use nosql database if i have more time to work on this project 
+    //aslo the reservations will be deleted and the sessions will be kept but with some changes with the starttime and price and status
     this.appLogger.logInfo({
       functionName: 'handleUserDeleted',
       message: `User with userId: ${data.userId} deleted from search service successfully`,
@@ -242,7 +245,20 @@ export class SearchServiceService implements OnModuleInit {
 
   async handleSessionDeleted(data: SessionDeletedEvent)
   {
-    await this.sessionRepo.delete({sessionId: data.sessionId});
+    const session = await this.sessionRepo.findOne({where:{sessionId: data.sessionId}});
+    if(!session) // should not happen
+      return;
+    if(session.status===SessionStatus.UPCOMING)
+    {
+      session.status = SessionStatus.CANCELLED;
+      await this.sessionRepo.save(session);
+    }
+    else 
+    {
+      session.status = SessionStatus.COMPLETED;
+      await this.sessionRepo.save(session);
+    } 
+    //again we will not delete anything ;
   }
 
   async handleSessionImagesCreationApproved(data: SessionImagesCreationApprovedEvent)
@@ -561,7 +577,6 @@ async getFollowers(userId: string, limit :number, page :number = 0)
   async handleReservationConfirmed(data: ReservationConfirmedEvent)
   {
     const session = await this.reservationRepo.findOne({where:{sessionId: data.sessionId, userId: data.userId}});
-    console.log(session);
     if(session) return ;//duplication of event,
     return this.reservationRepo.save({
       createdAt:data.createdAt,
@@ -606,4 +621,58 @@ async getFollowers(userId: string, limit :number, page :number = 0)
     );
   }
 
+  async getEmailsByUserIds(userIds: string[]): Promise<string[]>
+  {
+    if(userIds.length === 0) return [];
+    const users = await this.userRepo
+      .createQueryBuilder('user')
+      .where('user.userId IN (:...userIds)', { userIds })
+      .select(['user.email'])
+      .getMany();
+    return users.map(u => u.email);
+  }
+
+  async handleSessionCancelledNotification(sessionId: string, userIds: string[])
+  {
+    try 
+    {
+      const session = await this.sessionRepo.findOne({ where: { sessionId } });
+      const emails = await this.getEmailsByUserIds(userIds);
+      if(emails.length === 0)
+      {
+        this.appLogger.logInfo({
+          functionName: 'handleSessionCancelledNotification',
+          message: `No users to notify for cancelled session ${sessionId}`,
+        });
+        return;
+      }
+
+      const event = new SessionCancelledNotifyEvent({
+        eventId: randomBytes(16).toString('hex'),
+        sessionId,
+        sessionTitle: session?.title ?? 'Unknown Session',
+        users: emails,
+        message: `The session "${session?.title ?? sessionId}" has been cancelled by the trainer. If you had a confirmed reservation, a refund is being processed.`,
+      });
+      this.kafka.emit(KAFKA_TOPICS.SESSION_CANCELLED_NOTIFICATION, event);
+      this.appLogger.logInfo({
+        functionName: 'handleSessionCancelledNotification',
+        message: `Emitted cancellation notification for session ${sessionId} to ${emails.length} users`,
+        additionalData: { sessionId, emailCount: emails.length },
+      });
+    }
+    catch(error)
+    {
+      this.appLogger.logError({
+        functionName: 'handleSessionCancelledNotification',
+        problem: `Failed to handle session cancelled notification for session ${sessionId}: ${error.message}`,
+        error,
+      });
+    }
+  }
+
+  async handleSessionCancelled(sessionId: string)
+  {
+    await this.sessionRepo.update({sessionId}, {status: SessionStatus.PENDING});
+  }
 }

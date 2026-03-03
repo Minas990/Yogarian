@@ -33,4 +33,11 @@ also ill introduce a cqrs model soon with the search services
 th\e current models in search service is not deserialized 
 for testing purposes i made like this soon ill change 
 
-//we dont use slave read till now in search service
+//we didnt use slave read till now in search service : solved
+
+//idk why but my agent diceded to delete the reservations service so i recreate it thx gpt codex <3
+
+
+1.//consistent hashing with caching in search service 
+2.//ill make 2 versions of api-gateway one will implement our gateway and the second with nginx 
+3.//search servic redesign the schema and use elasticsearch

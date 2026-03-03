@@ -16,7 +16,7 @@ export class AuthUser extends AbstractEntity<AuthUser>
     password: string;
     @PrimaryGeneratedColumn('uuid')
     userId: string;
-    @Column('boolean',{default:true})//for testing
+    @Column('boolean',{default:false})
     isEmailConfirmed: boolean;
     @Column({nullable:true})
     passwordChangedAt: Date;

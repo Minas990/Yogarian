@@ -2,7 +2,7 @@ import { Injectable, BadRequestException, NotFoundException, Inject, ForbiddenEx
 import { SessionsRepository } from '../repos/sessions.repo';
 import { type ClientGrpc, ClientKafka } from '@nestjs/microservices';
 import { KAFKA_SERVICE, KAFKA_TOPICS } from '@app/kafka';
-import { AppLoggerService, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, SessionUpdatedEvent } from '@app/common';
+import { AppLoggerService, RefundAllUsersEvent, SessionCreatedEvent, SessionDeletedEvent, SessionImagesCreationApprovedEvent, SessionImagesCreationRejectedEvent, SessionImagesDeletionApprovedEvent, SessionImagesDeletionRejectedEvent, SessionUpdatedEvent } from '@app/common';
 import { CreateSessionDto } from '../dto/create-session.dto';
 import { UpdateSessionDto } from '../dto/update-session.dto';
 import { Session } from '../models/session.model';
@@ -167,23 +167,22 @@ export class SessionsService implements OnModuleInit {
     if (session.trainerId !== userId) {
       throw new ForbiddenException('You are not authorized to delete this session');
     }
-    if(session.currentParticipants)
-      throw new BadRequestException('You cannot delete a session that already has participants');
-    
-    await this.sessionsRepository.findOneAndDelete({ id });
 
-    this.kafka.emit(
-      KAFKA_TOPICS.SESSION_DELETED,
-      new SessionDeletedEvent({ sessionId: id })
-    );
+    if(session.status !== SessionStatus.UPCOMING)
+      throw new BadRequestException('You can only delete upcoming sessions');
+
+
+    await this.sessionsRepository.findOneAndUpdate({ id:session.id },{status: SessionStatus.PENDING});//pending tell all participats got their money back and session is not available for reservation, then after refunding all users we will delete it permanently
+
+    this.kafka.emit(KAFKA_TOPICS.REFUND_ALL_USERS, new RefundAllUsersEvent({ sessionId: session.id }));
 
     this.appLogger.logInfo({
-      functionName: 'deleteSession',
-      message: `Session with id: ${id} deleted successfully`,
+      functionName: 'session waiting for refund',
+      message: `Session with id: ${id} is now waiting for refund`,
       userId: userId,
     });
 
-    return { message: 'Session deleted successfully' };
+    return { message: 'Session waiting for refund' };
   }
 
 
@@ -197,18 +196,32 @@ export class SessionsService implements OnModuleInit {
       const sessions = await this.sessionsRepository.find({ trainerId: userId });
       
       for (const session of sessions) {
+        let refund = 0 ;
+        let deleted = 0;
         try 
         {
-          await this.sessionsRepository.findOneAndDelete({ id: session.id });
-          
-          this.kafka.emit(
-            KAFKA_TOPICS.SESSION_DELETED,
-            new SessionDeletedEvent({ sessionId: session.id })
-          );
+          let message:string;
+          if(session.status === SessionStatus.UPCOMING)
+          {
+            await this.sessionsRepository.findOneAndUpdate({ id:session.id },{status: SessionStatus.PENDING });//pending tell all participats got their money back and session is not available for reservation, then after refunding all users we will delete it permanently
+            this.kafka.emit(KAFKA_TOPICS.REFUND_ALL_USERS, new RefundAllUsersEvent({ sessionId: session.id }));
+            message = `Session with id: ${session.id} is now waiting for refund due to user deletion`;
+            refund++;
+          }
+          else 
+          {
+            await this.sessionsRepository.findOneAndDelete({ id: session.id });
+            this.kafka.emit(
+              KAFKA_TOPICS.SESSION_DELETED,
+              new SessionDeletedEvent({ sessionId: session.id })
+            );
+            message = `Session with id: ${session.id} deleted due to user deletion`;
+            deleted++;
+          }
           
           this.appLogger.logInfo({
             functionName: 'handleUserDeleted',
-            message: `Deleted session ${session.id} for trainer ${userId}`,
+            message: message,
             userId,
             additionalData: { sessionId: session.id },
           });
@@ -223,12 +236,11 @@ export class SessionsService implements OnModuleInit {
           });
         }
       
-
       this.appLogger.logInfo({
         functionName: 'handleUserDeleted',
-        message: `Successfully deleted ${sessions.length} sessions for trainer ${userId}`,
+        message: `Successfully deleted ${deleted} sessions and refunded ${refund} sessions for trainer ${userId}`,
         userId,
-        additionalData: { deletedCount: sessions.length },
+        additionalData: { deletedCount: deleted, refundedCount: refund },
       });
     } 
   }
@@ -428,7 +440,7 @@ async moveOnGoingSessionsToCompleted(): Promise<string[]> {
       additionalData: { sessionId, requestId },
     });
 
-    const session = await this.sessionsRepository.findOne({ id: sessionId });
+    const session = await this.sessionsRepository.findOne({ id: sessionId }).catch(() => {});
     const event = new CheckSessionUpcomingForRefundResponse({
       sessionId,
       requestId,
@@ -447,7 +459,8 @@ async moveOnGoingSessionsToCompleted(): Promise<string[]> {
       this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
       return;
     }
-    if(session.status !== SessionStatus.UPCOMING)
+
+    if(session.status == SessionStatus.COMPLETED || session.status == SessionStatus.ONGOING )
     {
       this.appLogger.logInfo({
         message: `Session is not upcoming, cannot refund (session: ${sessionId}, status: ${session.status}, request: ${requestId})`,
@@ -458,6 +471,21 @@ async moveOnGoingSessionsToCompleted(): Promise<string[]> {
       this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
       return;
     }
+
+    //if session is cancelled/pending-deletion and the reservations already find a record that means this is a valid refund
+    if(session.status == SessionStatus.CANCELLED || session.status == SessionStatus.PENDING)
+    {
+      this.appLogger.logInfo({
+        message: `Session is ${session.status}, refunding immediately (session: ${sessionId}, request: ${requestId})`,
+        functionName: 'handleCheckSessionUpcomingForRefund',
+        additionalData: { sessionId, requestId },
+      });
+      event.canRefund = true;
+      event.failure_reason = undefined;
+      this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
+      return;
+    }
+
 
     const now = new Date();
     const sessionStart = new Date(session.startTime);
@@ -483,5 +511,35 @@ async moveOnGoingSessionsToCompleted(): Promise<string[]> {
     event.canRefund = true;
     event.failure_reason = undefined;
     this.kafka.emit(KAFKA_TOPICS.CHECK_SESSION_UPCOMING_FOR_REFUND_RESPONSE, event);
+  }
+
+  async handleAllUsersRefunded(sessionId: string)
+  {
+    this.appLogger.logInfo({
+      functionName: 'handleAllUsersRefunded',
+      message: `All users refunded for session ${sessionId}, marking as CANCELLED and emitting SESSION_DELETED`,
+      additionalData: { sessionId },
+    });
+
+    const session = await this.sessionsRepository.findOne({ id: sessionId }).catch(() => null);
+    if(!session)
+    {
+      this.appLogger.logError({
+        functionName: 'handleAllUsersRefunded',
+        problem: `Session ${sessionId} not found when handling all-users-refunded`,
+        error: new Error('Session not found'),
+        additionalData: { sessionId },
+      });
+      return;
+    }
+
+    await this.sessionsRepository.findOneAndUpdate({ id: sessionId }, { status: SessionStatus.CANCELLED });
+    this.kafka.emit(KAFKA_TOPICS.SESSION_DELETED, new SessionDeletedEvent({ sessionId }));
+
+    this.appLogger.logInfo({
+      functionName: 'handleAllUsersRefunded',
+      message: `Session ${sessionId} marked as CANCELLED and SESSION_DELETED event emitted`,
+      additionalData: { sessionId },
+    });
   }
 }
