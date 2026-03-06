@@ -255,8 +255,8 @@ Run it in a dedicated terminal with admin/sudo privileges and keep it open.
 
 
 # small note
-i didnt add any healthcheck
-if you want to that i suggest this 
+i have not  added any health checks.
+if you want to add them  i suggest the following:
 
 ```bash
 npm install @nestjs/terminus
