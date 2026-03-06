@@ -8,10 +8,10 @@ COPY tsconfig*.json ./
 
 RUN npm ci
 
-COPY apps/search-service ./apps/search-service
+COPY apps/users-service ./apps/users-service
 COPY libs ./libs
 
-RUN npm run build -- search-service
+RUN npm run build -- users-service
 
 FROM node:22-alpine AS runtime
 
@@ -23,6 +23,6 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /usr/src/app/dist ./dist
 
-EXPOSE 8009
+EXPOSE 8002
 
-CMD ["node", "dist/apps/search-service/main.js"]
+CMD ["node", "dist/apps/users-service/main.js"]

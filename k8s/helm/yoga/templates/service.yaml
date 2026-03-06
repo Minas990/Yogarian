@@ -1,0 +1,29 @@
+{{- range $serviceName, $service := .Values.services }}
+{{- if $service.enabled }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "yoga.serviceFullname" (dict "root" $ "serviceName" $serviceName) }}
+  namespace: {{ $.Values.namespace.name }}
+  labels:
+    {{- include "yoga.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+spec:
+  type: {{ default "ClusterIP" $service.service.type }}
+  selector:
+    {{- include "yoga.selectorLabels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+  ports:
+    - name: http
+      port: {{ $service.port }}
+      targetPort: {{ $service.port }}
+      protocol: TCP
+    {{- range $extraPort := $service.extraServicePorts }}
+    - name: {{ $extraPort.name }}
+      port: {{ $extraPort.port }}
+      targetPort: {{ default $extraPort.port $extraPort.targetPort }}
+      protocol: {{ default "TCP" $extraPort.protocol }}
+    {{- end }}
+---
+{{- end }}
+{{- end }}

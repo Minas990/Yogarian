@@ -1,0 +1,174 @@
+namespace:
+  create: true
+  name: yoga
+
+nameOverride: ""
+fullnameOverride: ""
+
+services:
+  api-gateway:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/api-gateway
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8000
+    service:
+      type: LoadBalancer
+    networkPolicy:
+      enabled: false
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  auth-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/auth-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8001
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  users-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/users-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8002
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  media-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/media-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8003
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  location-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/location-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8004
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts:
+      - name: grpc
+        containerPort: 50051
+        protocol: TCP
+    extraServicePorts:
+      - name: grpc
+        port: 50051
+        targetPort: 50051
+        protocol: TCP
+    secretName: ""
+
+  sessions-service:
+    enabled: true
+    replicaCount: 2
+    image:
+      repository: yoga/sessions-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8005
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  notifications-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/notifications-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8007
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  reservations-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/reservations-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8008
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  payments-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/payments-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8006
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""
+
+  search-service:
+    enabled: true
+    replicaCount: 1
+    image:
+      repository: yoga/search-service
+      tag: local
+      pullPolicy: IfNotPresent
+    port: 8009
+    service:
+      type: ClusterIP
+    networkPolicy:
+      enabled: true
+    extraContainerPorts: []
+    extraServicePorts: []
+    secretName: ""

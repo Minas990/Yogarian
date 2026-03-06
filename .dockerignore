@@ -1,0 +1,32 @@
+# Dependencies and build outputs
+node_modules
+**/node_modules
+dist
+**/dist
+coverage
+**/coverage
+
+# VCS and editor metadata
+.git
+.gitignore
+.vscode
+.idea
+
+# Logs and temp files
+logs
+*.log
+*.tmp
+*.temp
+
+# Environment files (secrets)
+.env
+.env.*
+**/.env
+**/.env.*
+
+# Docs and non-runtime assets
+docs
+k8s
+
+# Docker artifacts
+**/.dockerignore

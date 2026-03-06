@@ -1,0 +1,41 @@
+{{- range $serviceName, $service := .Values.services }}
+{{- if $service.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "yoga.serviceFullname" (dict "root" $ "serviceName" $serviceName) }}
+  namespace: {{ $.Values.namespace.name }}
+  labels:
+    {{- include "yoga.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+spec:
+  replicas: {{ default 1 $service.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "yoga.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $serviceName }}
+  template:
+    metadata:
+      labels:
+        {{- include "yoga.selectorLabels" $ | nindent 8 }}
+        app.kubernetes.io/component: {{ $serviceName }}
+    spec:
+      containers:
+        - name: {{ $serviceName }}
+          image: "{{ $service.image.repository }}:{{ default "latest" $service.image.tag }}"
+          imagePullPolicy: {{ default "IfNotPresent" $service.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ $service.port }}
+              protocol: TCP
+            {{- range $extraPort := $service.extraContainerPorts }}
+            - name: {{ $extraPort.name }}
+              containerPort: {{ $extraPort.containerPort }}
+              protocol: {{ default "TCP" $extraPort.protocol }}
+            {{- end }}
+          envFrom:
+            - secretRef:
+                name: {{ include "yoga.secretName" (dict "root" $ "serviceName" $serviceName "service" $service) }}
+---
+{{- end }}
+{{- end }}

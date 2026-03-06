@@ -8,10 +8,10 @@ COPY tsconfig*.json ./
 
 RUN npm ci
 
-COPY apps/search-service ./apps/search-service
+COPY apps/payments-service ./apps/payments-service
 COPY libs ./libs
 
-RUN npm run build -- search-service
+RUN npm run build -- payments-service
 
 FROM node:22-alpine AS runtime
 
@@ -23,6 +23,6 @@ RUN npm ci --omit=dev && npm cache clean --force
 
 COPY --from=builder /usr/src/app/dist ./dist
 
-EXPOSE 8009
+EXPOSE 8006
 
-CMD ["node", "dist/apps/search-service/main.js"]
+CMD ["node", "dist/apps/payments-service/main.js"]
