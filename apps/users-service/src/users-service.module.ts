@@ -6,12 +6,11 @@ import { KafkaModule } from '@app/kafka';
 import { DatabaseModule } from '@app/database';
 import { User } from './models/user.model';
 import { Follow } from './models/follow.model';
-import { JwtStrategy } from '@app/common/auth/strategies/jwt.strategy';
 import { JwtAuthGuard } from '@app/common/auth/guards/jwt-auth.guard';
 import { UserRepository } from './repos/user.repostiroy';
 import { FollowRepository } from './repos/follow.repository';
 import { FollowService } from './services/follow-serivice.service';
-import {  LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
+import {  LoggerModule, RateLimiterModule } from '@app/common';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 
@@ -45,11 +44,6 @@ import { APP_INTERCEPTOR } from '@nestjs/core';
     LoggerModule.forService('users-service'),
   ],
   controllers: [UserController],
-  providers: [UsersService ,FollowService,JwtStrategy,JwtAuthGuard,UserRepository,FollowRepository,MediumThrottleGuard,LongThrottleGuard,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestLoggerInterceptor,
-    },
-  ],
+  providers: [UsersService ,FollowService,JwtAuthGuard,UserRepository,FollowRepository,MediumThrottleGuard,LongThrottleGuard,],
 })
 export class UsersServiceModule {}

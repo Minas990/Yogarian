@@ -6,10 +6,12 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
 import { KAFKA_BROKER } from '@app/kafka';
 import { LOCATION_PACKAGE_NAME } from '@app/common/generated/location';
+import { attachUserMetadataMiddleware } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(LocationServiceModule);
   app.set('trust proxy', true);
+  app.use(attachUserMetadataMiddleware);
   const cs = app.get(ConfigService);
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.KAFKA,

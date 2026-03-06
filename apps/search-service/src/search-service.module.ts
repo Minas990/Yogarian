@@ -8,8 +8,7 @@ import { Follow } from './models/follow.model';
 import { User } from './models/User.entity';
 import { Session } from './models/session.model';
 import { Reservation } from './models/reservations.model';
-import { JwtAuthGuard, JwtStrategy, LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { JwtAuthGuard, LoggerModule, RateLimiterModule } from '@app/common';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { Photo } from './models/photos.model';
 
@@ -42,9 +41,9 @@ import { Photo } from './models/photos.model';
         }),
   ],
   controllers: [SearchServiceController],
-  providers: [SearchServiceService,{provide : APP_INTERCEPTOR,useClass: RequestLoggerInterceptor} ,MediumThrottleGuard,
+  providers: [SearchServiceService ,MediumThrottleGuard,
       LongThrottleGuard,
       JwtAuthGuard,
-      JwtStrategy ],
+       ],
 })
 export class SearchServiceModule {}

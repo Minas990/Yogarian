@@ -5,11 +5,13 @@ import { ConfigService } from '@nestjs/config';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { KAFKA_BROKER } from '@app/kafka';
 import { ValidationPipe } from '@nestjs/common';
+import { attachUserMetadataMiddleware } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(SessionsServiceModule);
   const configService = app.get(ConfigService);
   app.set('trust proxy', 1);
+  app.use(attachUserMetadataMiddleware);
   app.connectMicroservice<MicroserviceOptions>(
     {
       transport: Transport.KAFKA,

@@ -8,4 +8,4 @@ export * from './rate-limiter';
 export * from './events';
 export * from './logger/app-logger.service';
 export * from './logger/logger.module';
-export * from './interceptors/request-logger.interceptor';
+export * from '../../../apps/api-gateway/src/interceptors/request-logger.interceptor';

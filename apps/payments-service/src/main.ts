@@ -4,10 +4,12 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { KAFKA_BROKER } from '@app/kafka';
 import { PaymentServiceModule } from './payments-service.module';
+import { attachUserMetadataMiddleware } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(PaymentServiceModule, { rawBody: true });
   app.set('trust proxy', 1);
+  app.use(attachUserMetadataMiddleware);
   const cs = app.get(ConfigService);
 
   app.connectMicroservice<MicroserviceOptions>({

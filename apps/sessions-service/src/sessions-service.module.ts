@@ -3,7 +3,7 @@ import { SessionsServiceController } from './sessions-service.controller';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { KafkaModule } from '@app/kafka';
 import { DatabaseModule } from '@app/database';
-import { CloudinaryModule, JwtAuthGuard, JwtStrategy, LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
+import {  JwtAuthGuard, LoggerModule, RateLimiterModule } from '@app/common';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { SessionsService } from './services/sessions.service';
 import { SessionsRepository } from './repos/sessions.repo';
@@ -82,14 +82,9 @@ import { QUEUE_CONSTANTS } from './queue/queues.constants';
     SessionsRepository,
     RunningSessionsProcessor,
     CompletedSessionsProcessor,
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestLoggerInterceptor,
-    },
     MediumThrottleGuard,
     LongThrottleGuard,
     JwtAuthGuard,
-    JwtStrategy,
   ],
 })
 export class SessionsServiceModule {}

@@ -1,6 +1,6 @@
 import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { SessionsService } from './services/sessions.service';
-import { CurrentUser, JwtAuthGuard,  type UserTokenPayload, UserDeletedEvent, ImagesSessionCreatedEvent, ImagesSessionDeletedEvent, ReservationCancelledEvent, RefundConfirmedEvent } from '@app/common';
+import { CurrentUser, JwtAuthGuard,  type UserTokenPayload, UserDeletedEvent, ImagesSessionCreatedEvent, ImagesSessionDeletedEvent, ReservationCancelledEvent, RefundConfirmedEvent, RolesDecorator, Roles } from '@app/common';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
 import { CreateSessionDto } from './dto/create-session.dto';
 import { UpdateSessionDto } from './dto/update-session.dto';
@@ -8,6 +8,7 @@ import { EventPattern, Payload } from '@nestjs/microservices';
 import { KAFKA_TOPICS } from '@app/kafka';
 import { CheckSessionUpcomingForRefundCommand, CheckSessionsAvailableCommand } from '@app/common/commands/sessions,command';
 import { SessionDeletedEvent } from '@app/common';
+import { IsAllowedGuard } from '@app/common/auth/guards/is-allowed.guard';
 
 @Controller('sessions')
 export class SessionsServiceController {
@@ -15,7 +16,8 @@ export class SessionsServiceController {
     private readonly sessionsService: SessionsService,
     ) {}
 
-    @UseGuards(JwtAuthGuard,MediumThrottleGuard)
+    @RolesDecorator(Roles.TRAINER)
+    @UseGuards(JwtAuthGuard,MediumThrottleGuard,IsAllowedGuard)
     @Post()
     async createSession(@CurrentUser() user : UserTokenPayload,@Body() createSessionDto:CreateSessionDto)
     {
@@ -29,14 +31,16 @@ export class SessionsServiceController {
       return this.sessionsService.getSessionById(id);   
     }
 
-    @UseGuards(JwtAuthGuard,MediumThrottleGuard)
+    @RolesDecorator(Roles.TRAINER)
+    @UseGuards(JwtAuthGuard,MediumThrottleGuard,IsAllowedGuard)
     @Patch(':id')
     async updateSession(@CurrentUser() user : UserTokenPayload,@Param('id',ParseUUIDPipe) id: string,@Body() body:UpdateSessionDto)
     {
       return this.sessionsService.updateSession(user.userId,id,body);
     }
 
-    @UseGuards(JwtAuthGuard,MediumThrottleGuard)
+    @RolesDecorator(Roles.TRAINER)
+    @UseGuards(JwtAuthGuard,MediumThrottleGuard,IsAllowedGuard)
     @Delete(':id')
     async deleteSession(@CurrentUser() user : UserTokenPayload,@Param('id',ParseUUIDPipe) id: string)
     {

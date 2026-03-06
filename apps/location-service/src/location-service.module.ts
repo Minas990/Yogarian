@@ -3,7 +3,7 @@ import { LocationServiceController } from './location-service.controller';
 import { KafkaModule } from '@app/kafka';
 import { DatabaseModule } from '@app/database';
 import { Location } from './models/location.model';
-import { JwtStrategy, LoggerModule, RateLimiterModule, RequestLoggerInterceptor } from '@app/common';
+import {  LoggerModule, RateLimiterModule } from '@app/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { APP_INTERCEPTOR } from '@nestjs/core';
 import { LongThrottleGuard, MediumThrottleGuard } from './guards/rate-limit.guard';
@@ -41,10 +41,6 @@ import { LocationService } from './location-service.service';
 
   ],
   controllers: [LocationServiceController],
-  providers: [{
-    provide: APP_INTERCEPTOR,
-    useClass: RequestLoggerInterceptor,
-  },MediumThrottleGuard,LongThrottleGuard,JwtStrategy,LocationRepo,LocationService,
-  ],
+  providers: [MediumThrottleGuard,LongThrottleGuard,LocationRepo,LocationService,],
 })
 export class LocationServiceModule {}

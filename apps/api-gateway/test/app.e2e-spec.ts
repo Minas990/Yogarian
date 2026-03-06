@@ -1,6 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication } from '@nestjs/common';
-import * as request from 'supertest';
+import request from 'supertest';
 import { ApiGatewayModule } from './../src/api-gateway.module';
 
 describe('ApiGatewayController (e2e)', () => {
@@ -15,10 +15,14 @@ describe('ApiGatewayController (e2e)', () => {
     await app.init();
   });
 
-  it('/ (GET)', () => {
+  afterEach(async () => {
+    await app.close();
+  });
+
+  it('returns 404 for routes not mapped by gateway', () => {
     return request(app.getHttpServer())
-      .get('/')
-      .expect(200)
-      .expect('Hello World!');
+      .get('/not-mapped')
+      .expect(404)
+      .expect({ message: 'Route not found in API gateway' });
   });
 });

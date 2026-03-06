@@ -5,10 +5,12 @@ import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ValidationPipe } from '@nestjs/common';
 import { KAFKA_BROKER } from '@app/kafka';
 import { NestExpressApplication } from '@nestjs/platform-express';
+import { attachUserMetadataMiddleware } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(NotificationsServiceModule);
   const cs = app.get(ConfigService);
+  app.use(attachUserMetadataMiddleware);
   app.connectMicroservice<MicroserviceOptions>({
     transport: Transport.KAFKA,
     options: {

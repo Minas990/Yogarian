@@ -4,10 +4,12 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { MicroserviceOptions, Transport } from '@nestjs/microservices';
 import { ConfigService } from '@nestjs/config';
 import { KAFKA_BROKER } from '@app/kafka';
+import { attachUserMetadataMiddleware } from '@app/common';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(ReservationsServiceModule);
   app.set('trust proxy', 1);
+  app.use(attachUserMetadataMiddleware);
   const cs = app.get(ConfigService);
 
   app.connectMicroservice<MicroserviceOptions>({

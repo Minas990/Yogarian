@@ -7,7 +7,7 @@ import { KafkaModule } from '@app/kafka';
 import { LoggerModule } from '@app/common/logger/logger.module';
 import { RateLimiterModule } from '@app/common/rate-limiter/rate-limiter.module';
 import { HttpOnlyJwtAuthGuard } from '@app/common/auth/guards/http-only-jwt-auth.guard';
-import { JwtAuthGuard, JwtStrategy, RealIpThrottlerGuard } from '@app/common';
+import { JwtAuthGuard , RealIpThrottlerGuard } from '@app/common';
 import { BookThrottleGuard, CancelThrottleGuard } from './guards/rate-limit.guard';
 import { BullModule } from '@nestjs/bullmq';
 import { QUEUE_CONSTANTS } from './queue/queues.constants';
@@ -60,6 +60,6 @@ import { ReservationsService } from './reservations.service';
     })
   ],
   controllers: [ReservationsServiceController],
-  providers: [ReservationsService,JwtStrategy,JwtAuthGuard,HttpOnlyJwtAuthGuard,BookThrottleGuard,CancelThrottleGuard,RealIpThrottlerGuard,RefundTimeoutProcessor,RefundAllUsersProcessor],
-})
+  providers: [ReservationsService,JwtAuthGuard,HttpOnlyJwtAuthGuard,BookThrottleGuard,CancelThrottleGuard,RealIpThrottlerGuard,RefundTimeoutProcessor,RefundAllUsersProcessor],
+})  
 export class ReservationsServiceModule {}

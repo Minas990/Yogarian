@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { AuthServiceController } from './auth-service.controller';
 import { AuthService } from './auth-service.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CloudinaryModule, JwtStrategy, RateLimiterModule, LoggerModule, RequestLoggerInterceptor } from '@app/common';
+import {  RateLimiterModule, LoggerModule } from '@app/common';
 import { DatabaseModule } from '@app/database';
 import { KafkaModule } from '@app/kafka';
 import { JwtModule } from '@nestjs/jwt';
@@ -68,7 +68,6 @@ import { QUEUE_CONSTANTS } from './constants/queue.constants';
   controllers: [AuthServiceController],
   providers: [
     AuthService,
-    JwtStrategy,
     AuthUserRepository,
     ShortThrottleGuard,
     SensitiveThrottleGuard,
@@ -76,10 +75,6 @@ import { QUEUE_CONSTANTS } from './constants/queue.constants';
     {
       provide: APP_FILTER,
       useClass: DatabaseErrorFilter,
-    },
-    {
-      provide: APP_INTERCEPTOR,
-      useClass: RequestLoggerInterceptor,
     },
   ],
 })

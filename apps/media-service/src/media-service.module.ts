@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { MediaServiceController } from './media-service.controller';
 import { MediaServiceService } from './media-service.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
-import { CloudinaryModule, JwtStrategy, LoggerModule, RateLimiterModule } from '@app/common';
+import { CloudinaryModule, LoggerModule, RateLimiterModule } from '@app/common';
 import { KafkaModule } from '@app/kafka';
 import { DatabaseModule } from '@app/database';
 import { Photo } from './models/photo.model';
@@ -51,6 +51,6 @@ import { memoryStorage } from 'multer';
     }),
   ],
   controllers: [MediaServiceController],
-  providers: [MediaServiceService,JwtStrategy,UploadThrottleGuard,DeleteThrottleGuard,PhotoRepository],
+  providers: [MediaServiceService,UploadThrottleGuard,DeleteThrottleGuard,PhotoRepository],
 })
 export class MediaServiceModule {}
