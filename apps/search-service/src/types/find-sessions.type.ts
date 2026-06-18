@@ -36,11 +36,6 @@ export class FindSessionsDto
     @Min(1)
     @Max(100)
     limit?: number;
-    @Type(() => Number)
-    @IsNumber()
-    @IsOptional()
-    @Min(1)
-    page?: number;
     
     @IsOptional()
     @Type(() => Date)

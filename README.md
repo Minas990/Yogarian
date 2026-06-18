@@ -72,6 +72,12 @@ The system is designed around **10 domain-focused microservices** communicating 
 
 Architecture is documented in the project diagrams under `docs/`.
 
+![AWS Cloud Architecture](docs/aws%20cloud%20arch%20diagram.svg)
+
+[Open in diagrams.net](https://viewer.diagrams.net/?tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=Untitled%20Diagram.drawio&dark=auto#Uhttps%3A%2F%2Fdrive.google.com%2Fuc%3Fid%3D1WyDVpbiQtjmuddxRZL7v7WeZnrCC_yX1%26export%3Ddownload)
+
+> Note: This AWS diagram is a conceptual target cloud architecture (how the platform would look on AWS), not the current live/real infrastructure.
+
 ![Yogarian High-Level Architecture](docs/high-level-arch.png)
 
 - Editable source: `docs/diagrams.io/arch.diagram.drawio`
