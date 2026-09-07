@@ -74,8 +74,7 @@ Architecture is documented in the project diagrams under `docs/`.
 
 ![AWS Cloud Architecture](docs/aws%20cloud%20arch%20diagram.svg)
 
-[Open in diagrams.net](https://viewer.diagrams.net/?tags=%7B%7D&lightbox=1&highlight=0000ff&edit=_blank&layers=1&nav=1&title=Untitled%20Diagram.drawio&dark=auto#Uhttps%3A%2F%2Fdrive.google.com%2Fuc%3Fid%3D1WyDVpbiQtjmuddxRZL7v7WeZnrCC_yX1%26export%3Ddownload)
-
+[Open in diagrams.net](https://lucid.app/lucidchart/6b7d6343-c5a8-4744-830a-79f1ac1143d8/edit?viewport_loc=200%2C-199%2C3090%2C1772%2C0_0&invitationId=inv_cfe40472-f9f5-4e9b-9b6b-562983487204)
 > Note: This AWS diagram is a conceptual target cloud architecture (how the platform would look on AWS), not the current live/real infrastructure.
 
 ![Yogarian High-Level Architecture](docs/high-level-arch.png)
