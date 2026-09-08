@@ -4,7 +4,7 @@
 
 **A production-ready microservices backend for fitness & yoga session management**
 
-Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernetes
+Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernetes · Terraform · AWS
 
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -12,8 +12,10 @@ Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernete
 [![Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?logo=apachekafka&logoColor=white)](https://kafka.apache.org/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Terraform](https://img.shields.io/badge/Terraform-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
+[![AWS](https://img.shields.io/badge/AWS-232F3E?logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
 
-[API Docs (Postman)](https://documenter.getpostman.com/view/45996252/2sBXcLex1Y) · [Architecture Diagrams](#architecture-overview) · [Getting Started](#getting-started)
+[API Docs (Postman)](https://documenter.getpostman.com/view/45996252/2sBXcLex1Y) · [Architecture Diagrams](#architecture-overview) · [Getting Started](#getting-started) · [AWS Infrastructure](#aws-infrastructure-terraform)
 
 </div>
 
@@ -34,6 +36,7 @@ Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernete
 - [API Reference](#api-reference)
 - [Getting Started](#getting-started)
 - [Deployment](#deployment)
+- [AWS Infrastructure (Terraform)](#aws-infrastructure-terraform)
 - [Project Structure](#project-structure)
 - [Architecture Diagrams](#architecture-diagrams)
 
@@ -65,6 +68,7 @@ The system is designed around **10 domain-focused microservices** communicating 
 - Event-driven notifications (welcome, OTP, password reset, session/cancellation alerts)
 - Search and discovery endpoints backed by projection sync + PostgreSQL read replica
 - Containerized local development and Kubernetes deployment with Helm
+- Production AWS infrastructure fully codified in Terraform (3-AZ VPC, EKS, managed data stores, MSK, IRSA)
 
 ---
 
@@ -75,12 +79,8 @@ Architecture is documented in the project diagrams under `docs/`.
 ![AWS Cloud Architecture](docs/aws%20cloud%20arch%20diagram.svg)
 
 [Open in diagrams.net](https://lucid.app/lucidchart/6b7d6343-c5a8-4744-830a-79f1ac1143d8/edit?viewport_loc=200%2C-199%2C3090%2C1772%2C0_0&invitationId=inv_cfe40472-f9f5-4e9b-9b6b-562983487204)
-> Note: This AWS diagram is a conceptual target cloud architecture (how the platform would look on AWS), not the current live/real infrastructure.
 
-![Yogarian High-Level Architecture](docs/high-level-arch.png)
-
-- Editable source: `docs/diagrams.io/arch.diagram.drawio`
-- Search architecture: `docs/search/search-arch.png`
+[See docs for further diagrams](docs)
 
 ### Request Flow
 
@@ -96,10 +96,11 @@ Architecture is documented in the project diagrams under `docs/`.
 |:-----------|:----:|:--------|
 | **NestJS** | <img src="https://nestjs.com/img/logo-small.svg" width="22"> | Modular backend framework for scalable microservices |
 | **TypeScript** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" width="22"> | Type-safe language across all services and shared libraries |
-| **PostgreSQL** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" width="22"> | Primary relational database (one instance per service) |
+| **PostgreSQL** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" width="22"> | Relational database for local dev (one instance per service) and select production services |
 | **PostGIS** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/postgresql/postgresql-original.svg" width="22"> | Geospatial extension for proximity queries (location & search) |
-| **Apache Kafka** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/apachekafka/apachekafka-original.svg" width="22"> | Event-driven messaging bus for async inter-service communication |
-| **Redis** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" width="22"> | JWT token invalidation, caching, and BullMQ queue backend |
+| **Amazon DynamoDB** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/amazonwebservices/amazonwebservices-plain-wordmark.svg" width="22"> | Primary production data store for high-concurrency/single-item-write services |
+| **Apache Kafka (MSK)** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/apachekafka/apachekafka-original.svg" width="22"> | Event-driven messaging bus for async inter-service communication |
+| **Redis (ElastiCache)** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/redis/redis-original.svg" width="22"> | JWT token invalidation, caching, and BullMQ queue backend |
 | **gRPC** | <img src="https://grpc.io/img/logos/grpc-icon-color.png" width="22"> | Synchronous service-to-service RPC (sessions ↔ location) |
 | **Stripe** | <img src="https://cdn.brandfetch.io/idxAg10C0L/theme/dark/symbol.svg" width="22"> | Payment processing, checkout sessions, and automated refunds |
 | **TypeORM** | <img src="https://avatars.githubusercontent.com/u/20165311" width="22"> | ORM for consistent data access across all PostgreSQL databases |
@@ -107,7 +108,8 @@ Architecture is documented in the project diagrams under `docs/`.
 | **Nodemailer** | <img src="https://nodemailer.com/nm_logo_200x136.png" width="22"> | Email delivery for notifications (OTP, welcome, alerts) |
 | **Cloudinary** | <img src="https://res.cloudinary.com/cloudinary/image/upload/c_scale,w_22/v1/logo/for_white_bg/cloudinary_icon_for_white_bg.png" width="22"> | Cloud-based image storage for profile and session photos |
 | **Docker** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="22"> | Containerized development and deployment |
-| **Kubernetes** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-original.svg" width="22"> | Orchestrated cluster deployment with Helm charts |
+| **Kubernetes (EKS)** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-original.svg" width="22"> | Orchestrated cluster deployment with Helm charts |
+| **Terraform** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg" width="22"> | Infrastructure as code for the full AWS production environment |
 | **Jest** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jest/jest-plain.svg" width="22"> | Unit, integration, and end-to-end testing |
 
 ---
@@ -152,6 +154,7 @@ Synchronous RPC for atomically creating/updating session locations when a traine
 - **Outbox pattern**: `notifications-service` persists email tasks and retries delivery asynchronously
 - **Event-driven architecture**: Domain events (`user.*`, `session.*`, `payment.*`, `reservation.*`) drive cross-service reactions
 - **Database-per-service**: Each microservice has isolated persistence and schema ownership
+- **Polyglot persistence (production)**: each service's production data store — DynamoDB, RDS, or Aurora — is chosen per its actual read/write access pattern rather than a single default (see [AWS Infrastructure](#aws-infrastructure-terraform))
 
 ---
 
@@ -197,7 +200,9 @@ Signup → Email OTP Sent → Confirm Email → Login → JWT Issued (+ HTTP-onl
 
 ## Database Architecture
 
-Each service owns its data with a dedicated PostgreSQL instance — no shared databases.
+> This section describes the **local development** setup (`docker-compose.yaml`). Production data stores differ per service — see [AWS Infrastructure (Terraform)](#aws-infrastructure-terraform) below.
+
+Each service owns its data with a dedicated PostgreSQL instance in local dev — no shared databases.
 
 | Service | Database | Port | Notes |
 |:--------|:---------|:----:|:------|
@@ -493,6 +498,63 @@ helm install yoga .\k8s\helm\chart -n yoga --create-namespace
 
 ---
 
+## AWS Infrastructure (Terraform)
+
+The production environment is fully codified as modular Terraform under `terraform/`, targeting `us-east-1` across **3 Availability Zones**. This is infrastructure only — the Kubernetes-side wiring (per-service `ServiceAccount`s, IRSA annotations, External Secrets sync) is tracked separately and not yet applied; see [Deployment status](#deployment-status) below.
+
+### Networking
+
+- Single VPC, `10.0.0.0/16`, split into public / app-private / data-private subnets across all 3 AZs
+- One NAT Gateway per AZ (not a single shared NAT) so an AZ outage doesn't take down egress for the other two
+- Free **VPC Gateway Endpoints** for S3 and DynamoDB to keep that traffic off NAT entirely; no interface endpoints for other AWS APIs — pods reach them via NAT, since IAM authentication (IRSA) works identically over either path
+- An internal **Network Load Balancer** with one target group + listener per backend service, matching the single-NLB shape from the original architecture diagram
+
+### Compute
+
+- **EKS** cluster spanning the 3 app-private subnets, with a managed node group (min 3 / desired 6 / max 12) and an IAM OIDC provider for IRSA
+- **ECR** repository per service for container images
+- **AWS Lambda** (container image) for `notifications-service`, VPC-attached, triggered by an MSK event source mapping (batched, not one-invocation-per-message)
+
+### Data stores — polyglot by design
+
+Each service's production data store was chosen by its actual access pattern, not a single default:
+
+| Service | Store | Why |
+|:--------|:------|:----|
+| auth-service | DynamoDB | Single-item lookups by `userId`; GSIs on `email` and a sparse `passwordResetToken` index |
+| users-service | DynamoDB | Single-item lookups by `userId`; follow graph modeled as a separate adjacency-list table |
+| media-service | DynamoDB | Simple keyed CRUD, no relational needs |
+| payment-service | DynamoDB | High-frequency single-item conditional writes on webhook updates; one dedicated lookup table enforces uniqueness on Stripe checkout session ID |
+| reservations-service | DynamoDB | High-contention conditional writes (booking races), atomic counters |
+| sessions-service | DynamoDB | Same contention profile as reservations (participant counts, status transitions) |
+| notifications-service | DynamoDB | Idempotency-key lookup with native TTL for auto-expiry — the textbook use case |
+| location-service | RDS (PostgreSQL) | Relational, and paired with PostGIS-backed search |
+| search-service | Aurora PostgreSQL (PostGIS) | CQRS read side; multi-AZ read scaling for proximity queries |
+
+RDS/Aurora instances are Multi-AZ (synchronous standby) plus one asynchronous read replica each. Credentials for both are auto-generated and stored in Secrets Manager — never hardcoded.
+
+### Messaging & caching
+
+- **MSK** — 3 brokers (one per AZ), **IAM authentication** (SASL/IAM) so every service's IRSA role carries scoped `kafka-cluster:*` produce/consume permissions instead of static credentials
+- **ElastiCache Redis** — single replication group, Multi-AZ automatic failover
+
+### IAM (IRSA)
+
+Every service gets its own least-privilege IAM role, trusted via the EKS OIDC provider and scoped only to what that service touches (its own DynamoDB table(s), its own Secrets Manager secret, Kafka produce/consume). A separate role exists for **External Secrets Operator**, scoped only to the app-secret containers in Secrets Manager — not the RDS/Aurora credential secrets, which each service's own IRSA role reads directly.
+
+> ⚠️ IRSA roles are provisioned but **not yet wired up**: the Helm chart's Deployments don't currently set `serviceAccountName`, so pods run under the `default` ServiceAccount and none of these roles are actually assumed yet. This is tracked, not forgotten.
+
+### Deployment status
+
+| Layer | Status |
+|:------|:-------|
+| Networking, EKS, RDS, Aurora, DynamoDB, MSK, ElastiCache, NLB, ECR, IRSA roles | ✅ Provisioned via Terraform |
+| Per-service `ServiceAccount` + IRSA annotation wiring in Helm chart | ⏳ Not yet done |
+| External Secrets Operator install + `ExternalSecret` CRDs | ⏳ Not yet done |
+| Application code migration to DynamoDB for the services listed above | ⏳ Not yet done — local dev still runs all services on PostgreSQL |
+
+---
+
 ## Project Structure
 
 ```
@@ -512,6 +574,13 @@ yogarian/
 │   ├── common/                   # Auth, DTOs, events, types, rate limiting
 │   ├── database/                 # TypeORM config, base repository
 │   └── kafka/                    # Kafka topics (45+), module setup
+├── terraform/                        # Terraform — AWS production infrastructure
+│   ├── modules/                  # network, eks, rds, aurora, dynamodb,
+│   │                             # elasticache, msk, irsa, notifications, nlb, eso
+│   ├── main.tf
+│   ├── variables.tf
+│   ├── providers.tf
+│   └── outputs.tf
 ├── docker/                       # Docker configs
 │   └── postgres/search/          # Streaming replication scripts
 ├── k8s/helm/                     # Kubernetes Helm charts
