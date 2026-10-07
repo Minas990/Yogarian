@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { NOTIFICATION_STATUS } from '../types/notification.type';
 import { NotificationsService } from '../notifications-service.service';
+import { PrometheusMetricsService } from '@app/common';
 
 @Injectable()
 export class NotificationOutboxPoller {
@@ -9,7 +10,7 @@ export class NotificationOutboxPoller {
   private isPolling = false;
   private isRescuing = false;
 
-  constructor(private readonly notificationsService: NotificationsService) {}
+  constructor(private readonly notificationsService: NotificationsService, private readonly metrics: PrometheusMetricsService) {}
 
   @Cron(CronExpression.EVERY_5_SECONDS)
   async pollPendingTasks(): Promise<void> {
@@ -50,6 +51,7 @@ export class NotificationOutboxPoller {
       if (stuckTasks.length === 0) return;
 
       this.logger.warn(`Rescue poller: resetting ${stuckTasks.length} stuck task(s) to PENDING`);
+      this.metrics.recordNotificationRetries(stuckTasks.length);
 
       await Promise.allSettled(
         stuckTasks.map(task =>

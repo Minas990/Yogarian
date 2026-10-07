@@ -9,13 +9,13 @@ import { ClientKafka } from '@nestjs/microservices';
 import { PaymentStatus } from '@app/common/types/payment-status.type';
 import {type Request, type Response } from 'express';
 import { CreatePaymentCheckoutCommand, CreatePaymentCheckoutResponse, RefundReservationCommand, RefundReservationResponse } from '@app/common/commands/payment.command';
-import { AppLoggerService, RefundConfirmedEvent, RefundFailedEvent } from '@app/common';
+import { AppLoggerService, PrometheusMetricsService, RefundConfirmedEvent, RefundFailedEvent } from '@app/common';
 import { PaymentConfirmedEvent, PaymentFailedEvent } from '@app/common/events/payment.event';
 
 @Injectable()
 export class PaymentServiceService {
   private readonly stripe:Stripe;
-  constructor(private readonly configService:ConfigService, @InjectRepository(PaymentEntity) private readonly paymentRepo: Repository<PaymentEntity>, @Inject(KAFKA_SERVICE) private readonly kafkaClient:ClientKafka,private readonly logger : AppLoggerService)
+  constructor(private readonly configService:ConfigService, @InjectRepository(PaymentEntity) private readonly paymentRepo: Repository<PaymentEntity>, @Inject(KAFKA_SERVICE) private readonly kafkaClient:ClientKafka,private readonly logger : AppLoggerService, private readonly metrics: PrometheusMetricsService)
   {
     this.stripe = new Stripe(configService.getOrThrow<string>('STRIPE_SECRET_KEY'),{typescript: true})    
   }
@@ -48,6 +48,7 @@ export class PaymentServiceService {
 
   async createPayment(event: CreatePaymentCheckoutCommand)
   {
+    const startedAt = process.hrtime.bigint();
     try 
     {
       const  payment = await  this.paymentRepo.save({
@@ -64,6 +65,8 @@ export class PaymentServiceService {
       payment.amount = event.price;
       payment.status = PaymentStatus.AWAITING_WEBHOOK;
       await this.paymentRepo.save(payment);
+      this.metrics.applyAction('paymentsCreated');
+      this.metrics.observeDuration('paymentDuration', Number(process.hrtime.bigint() - startedAt) / 1_000_000_000);
       const publishedEvent = new CreatePaymentCheckoutResponse({
         sessionId: event.sessionId,
         requestId: event.requestId,
@@ -80,6 +83,8 @@ export class PaymentServiceService {
     catch(error)
     {
       await this.paymentRepo.delete({sessionId: event.sessionId, requestId: event.requestId});//if the checkout creation failed for any reason, we delete the payment record to allow retrying the booking process without conflicts with existing payment records
+      this.metrics.applyAction('paymentsFailed');
+      this.metrics.observeDuration('paymentDuration', Number(process.hrtime.bigint() - startedAt) / 1_000_000_000);
       const publishedEvent = new CreatePaymentCheckoutResponse({
         sessionId: event.sessionId,
         requestId: event.requestId,
@@ -97,6 +102,7 @@ export class PaymentServiceService {
 
   async handleStripeWebhook(req:Request, signature: string)
   {
+    const startedAt = process.hrtime.bigint();
     const payload = (req as any).rawBody;
 
     const event =  this.stripe.webhooks.constructEvent(
@@ -104,8 +110,9 @@ export class PaymentServiceService {
       signature,
       this.configService.getOrThrow<string>('STRIPE_WEBHOOK_SECRET')
     );
-    switch (event.type) 
-    {
+    try {
+      switch (event.type) 
+      {
       case 'checkout.session.completed':
         {
           const payment = await this.paymentRepo.findOneBy({stripe_checkout_session_id: event.data.object.id});
@@ -122,6 +129,7 @@ export class PaymentServiceService {
             const amount = event.data.object.amount_total ?? 0  ;
             payment.amount = amount / 100;
             await this.paymentRepo.save(payment);
+            this.metrics.applyAction('paymentsSuccessful');
             this.kafkaClient.emit(KAFKA_TOPICS.PAYMENT_CONFIRMED, new PaymentConfirmedEvent({
               sessionId: payment.sessionId ,
               requestId: payment.requestId,
@@ -144,6 +152,7 @@ export class PaymentServiceService {
             return;
           payment.status = PaymentStatus.EXPIRED;
           await this.paymentRepo.save(payment);
+          this.metrics.applyAction('paymentsFailed');
           this.kafkaClient.emit(KAFKA_TOPICS.PAYMENT_FAILED, new PaymentFailedEvent({
             sessionId: payment.sessionId ,
             requestId: payment.requestId,
@@ -236,6 +245,7 @@ export class PaymentServiceService {
 
             payment.status = PaymentStatus.REFUNDED;
             await this.paymentRepo.save(payment);
+            this.metrics.applyAction('paymentsRefunded');
             const event = new RefundConfirmedEvent({
               sessionId: payment.sessionId,
               requestId: payment.requestId,
@@ -266,6 +276,7 @@ export class PaymentServiceService {
             payment.status = PaymentStatus.SUCCEEDED;
             payment.failure_reason = refund.failure_reason ?? 'Refund failed for unknown reason';
             await this.paymentRepo.save(payment);
+            this.metrics.applyAction('paymentsFailed');
             this.kafkaClient.emit(KAFKA_TOPICS.REFUND_RESERVATION_FAILED, new RefundFailedEvent({
               sessionId: payment.sessionId,
               requestId: payment.requestId,
@@ -278,11 +289,16 @@ export class PaymentServiceService {
 
       default:
         console.log(`Unhandled event type ${event.type}`);
+      }
+    }
+    finally {
+      this.metrics.observeDuration('paymentDuration', Number(process.hrtime.bigint() - startedAt) / 1_000_000_000);
     }
   }
   
   async refundReservation(command: RefundReservationCommand)
   {
+    const startedAt = process.hrtime.bigint();
     try 
     {
       this.logger.logInfo({
@@ -332,6 +348,7 @@ export class PaymentServiceService {
         requestId: command.requestId,
         success: true,
       }));
+      this.metrics.observeDuration('paymentDuration', Number(process.hrtime.bigint() - startedAt) / 1_000_000_000);
     }
     catch(error)
     {
@@ -347,6 +364,8 @@ export class PaymentServiceService {
         success: false,
         failure_reason: error.message,
       }));
+      this.metrics.applyAction('paymentsFailed');
+      this.metrics.observeDuration('paymentDuration', Number(process.hrtime.bigint() - startedAt) / 1_000_000_000);
     }
   }
 }

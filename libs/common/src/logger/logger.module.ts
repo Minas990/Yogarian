@@ -1,5 +1,6 @@
 import { Module, DynamicModule } from '@nestjs/common';
 import { AppLoggerService, SERVICE_NAME_TOKEN } from './app-logger.service';
+import { PrometheusMetricsModule } from '../observability/prometheus-metrics.module';
 
 @Module({
   providers: [AppLoggerService],
@@ -10,6 +11,7 @@ export class LoggerModule {
     return {
       module: LoggerModule,
       global: isGlobal,
+      imports: [PrometheusMetricsModule.forService(serviceName)],
       providers: [
         AppLoggerService,
         {

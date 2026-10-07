@@ -156,6 +156,22 @@ You should see one secret per service, e.g. `yoga-auth-service-env`.
 helm install yoga .\k8s\helm\chart -n yoga --create-namespace
 ```
 
+If you want the observability stack locally, install the same Prometheus/Grafana chart that Terraform uses for EKS:
+
+```powershell
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm repo update
+helm install yoga-monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
+```
+
+Grafana is then available through a port-forward:
+
+```powershell
+kubectl -n monitoring port-forward svc/yoga-monitoring-grafana 3000:80
+```
+
+Each app service publishes `GET /metrics`, and the chart creates `ServiceMonitor` resources so Prometheus Operator can scrape them automatically.
+
 Verify all pods are running:
 
 ```bash
@@ -252,6 +268,9 @@ See the Linux note in Step 4.
 
 **minikube tunnel keeps dying**
 Run it in a dedicated terminal with admin/sudo privileges and keep it open.
+
+**Grafana is not reachable**
+Use `kubectl -n monitoring port-forward svc/yoga-monitoring-grafana 3000:80` after the Helm release is installed.
 
 
 # small note

@@ -4,7 +4,7 @@
 
 **A production-ready microservices backend for fitness & yoga session management**
 
-Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernetes · Terraform · AWS
+Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernetes · Prometheus · Grafana · Terraform · AWS
 
 [![NestJS](https://img.shields.io/badge/NestJS-11.0-E0234E?logo=nestjs&logoColor=white)](https://nestjs.com/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178C6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
@@ -12,6 +12,8 @@ Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernete
 [![Kafka](https://img.shields.io/badge/Apache_Kafka-231F20?logo=apachekafka&logoColor=white)](https://kafka.apache.org/)
 [![Docker](https://img.shields.io/badge/Docker-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 [![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?logo=kubernetes&logoColor=white)](https://kubernetes.io/)
+[![Prometheus](https://img.shields.io/badge/Prometheus-E6522C?logo=prometheus&logoColor=white)](https://prometheus.io/)
+[![Grafana](https://img.shields.io/badge/Grafana-F46800?logo=grafana&logoColor=white)](https://grafana.com/)
 [![Terraform](https://img.shields.io/badge/Terraform-7B42BC?logo=terraform&logoColor=white)](https://www.terraform.io/)
 [![AWS](https://img.shields.io/badge/AWS-232F3E?logo=amazonaws&logoColor=white)](https://aws.amazon.com/)
 
@@ -33,6 +35,7 @@ Built with NestJS · Kafka · PostgreSQL · gRPC · Redis · Stripe · Kubernete
 - [Authentication & Authorization](#authentication--authorization)
 - [Database Architecture](#database-architecture)
 - [Kafka Event System](#kafka-event-system)
+- [Prometheus Metrics](#prometheus-metrics)
 - [API Reference](#api-reference)
 - [Getting Started](#getting-started)
 - [Deployment](#deployment)
@@ -68,6 +71,7 @@ The system is designed around **10 domain-focused microservices** communicating 
 - Event-driven notifications (welcome, OTP, password reset, session/cancellation alerts)
 - Search and discovery endpoints backed by projection sync + PostgreSQL read replica
 - Containerized local development and Kubernetes deployment with Helm
+- Prometheus + Grafana observability deployed from Helm
 - Production AWS infrastructure fully codified in Terraform (3-AZ VPC, EKS, managed data stores, MSK, IRSA)
 
 ---
@@ -109,6 +113,8 @@ Architecture is documented in the project diagrams under `docs/`.
 | **Cloudinary** | <img src="https://res.cloudinary.com/cloudinary/image/upload/c_scale,w_22/v1/logo/for_white_bg/cloudinary_icon_for_white_bg.png" width="22"> | Cloud-based image storage for profile and session photos |
 | **Docker** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/docker/docker-original.svg" width="22"> | Containerized development and deployment |
 | **Kubernetes (EKS)** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/kubernetes/kubernetes-original.svg" width="22"> | Orchestrated cluster deployment with Helm charts |
+| **Prometheus** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/prometheus/prometheus-original.svg" width="22"> | Metrics collection and alerting for all backend services |
+| **Grafana** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/grafana/grafana-original.svg" width="22"> | Dashboards and observability for service and Kafka metrics |
 | **Terraform** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/terraform/terraform-original.svg" width="22"> | Infrastructure as code for the full AWS production environment |
 | **Jest** | <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/jest/jest-plain.svg" width="22"> | Unit, integration, and end-to-end testing |
 
@@ -295,6 +301,115 @@ The platform uses **45+ Kafka topics** organized by domain:
 | `refund.all.users` / `all.users.refunded` | Sessions ↔ Reservations: Bulk refund on session deletion |
 
 </details>
+
+---
+
+## Prometheus Metrics
+
+Every backend service exposes a Prometheus metrics endpoint at `GET /metrics`. 
+
+### Common Metrics
+All services expose the following common metrics, using `method`, `route`, and `status_code` labels:
+- `http_requests_total` (Counter)
+- `http_request_duration_seconds` (Histogram)
+- `http_requests_errors_total` (Counter)
+
+Services that consume Kafka events also expose these metrics with the `topic` label:
+- `kafka_messages_consumed_total` (Counter)
+- `kafka_messages_failed_total` (Counter)
+- `kafka_message_processing_duration_seconds` (Histogram)
+
+### Service-Specific Metrics
+
+<details>
+<summary><b>API Gateway</b></summary>
+
+- `active_connections` (Gauge)
+</details>
+
+<details>
+<summary><b>Auth Service</b></summary>
+
+- `auth_login_attempts_total` (Counter)
+- `auth_login_success_total` (Counter)
+- `auth_login_failures_total` (Counter)
+- `auth_token_refresh_total` (Counter)
+- `auth_registration_total` (Counter)
+</details>
+
+<details>
+<summary><b>Users Service</b></summary>
+
+- `users_created_total` (Counter)
+- `users_updated_total` (Counter)
+- `users_deleted_total` (Counter)
+- `user_profile_updates_total` (Counter)
+</details>
+
+<details>
+<summary><b>Media Service</b></summary>
+
+- `media_uploads_total` (Counter)
+- `media_upload_failures_total` (Counter)
+- `media_deletions_total` (Counter)
+- `media_upload_duration_seconds` (Histogram)
+</details>
+
+<details>
+<summary><b>Location Service</b></summary>
+
+- `location_requests_total` (Counter)
+- `location_search_duration_seconds` (Histogram)
+- `location_search_errors_total` (Counter)
+</details>
+
+<details>
+<summary><b>Sessions Service</b></summary>
+
+- `sessions_created_total` (Counter)
+- `sessions_updated_total` (Counter)
+- `sessions_cancelled_total` (Counter)
+- `sessions_capacity_total` (Gauge)
+</details>
+
+<details>
+<summary><b>Reservations Service</b></summary>
+
+- `reservations_created_total` (Counter)
+- `reservations_confirmed_total` (Counter)
+- `reservations_cancelled_total` (Counter)
+- `reservation_failures_total` (Counter)
+- `reservation_duration_seconds` (Histogram)
+</details>
+
+<details>
+<summary><b>Payments Service</b></summary>
+
+- `payments_created_total` (Counter)
+- `payments_successful_total` (Counter)
+- `payments_failed_total` (Counter)
+- `payments_refunded_total` (Counter)
+- `payment_duration_seconds` (Histogram)
+</details>
+
+<details>
+<summary><b>Search Service</b></summary>
+
+- `search_requests_total` (Counter)
+- `search_duration_seconds` (Histogram)
+- `search_errors_total` (Counter)
+- `search_results_count` (Histogram)
+</details>
+
+<details>
+<summary><b>Notifications Service</b></summary>
+
+- `notifications_sent_total` (Counter)
+- `notifications_failed_total` (Counter)
+- `notification_retries_total` (Counter)
+- `notification_processing_duration_seconds` (Histogram)
+</details>
+
 
 ---
 
@@ -488,12 +603,22 @@ Each service has its own `Dockerfile` in `apps/<service>/Dockerfile`.
 The project includes Helm charts for Kubernetes deployment.
 For full Minikube instructions, use **[k8s/helm/readme.md](k8s/helm/readme.md)**.
 
+The app chart also emits `ServiceMonitor` resources, and the observability stack is installed from the `prometheus-community/kube-prometheus-stack` Helm chart into the `monitoring` namespace.
+Each backend service exposes `GET /metrics` with common HTTP metrics plus service-specific Prometheus counters and histograms.
+
 Quick reference:
 
 ```bash
 minikube start
 minikube tunnel  # Expose gateway LoadBalancer
 helm install yoga .\k8s\helm\chart -n yoga --create-namespace
+```
+
+For local monitoring, install the same observability stack directly from Helm:
+
+```bash
+helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+helm install yoga-monitoring prometheus-community/kube-prometheus-stack -n monitoring --create-namespace
 ```
 
 ---
@@ -549,6 +674,7 @@ Every service gets its own least-privilege IAM role, trusted via the EKS OIDC pr
 | Layer | Status |
 |:------|:-------|
 | Networking, EKS, RDS, Aurora, DynamoDB, MSK, ElastiCache, NLB, ECR, IRSA roles | ✅ Provisioned via Terraform |
+| Prometheus + Grafana observability stack via Helm | ✅ Provisioned via Helm |
 | Per-service `ServiceAccount` + IRSA annotation wiring in Helm chart | ⏳ Not yet done |
 | External Secrets Operator install + `ExternalSecret` CRDs | ⏳ Not yet done |
 | Application code migration to DynamoDB for the services listed above | ⏳ Not yet done — local dev still runs all services on PostgreSQL |
@@ -608,3 +734,4 @@ Detailed architecture and sequence diagrams are available in the `docs/` directo
 | Reservation States | `docs/reservations & payment/reservation.state.diagram.png` |
 | Payment States | `docs/reservations & payment/payment.state.diagram.png` |
 | Notifications Architecture | `docs/notifications/notifications-high-level-arch.diagram.png` |
+

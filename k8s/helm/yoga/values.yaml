@@ -2,6 +2,15 @@ namespace:
   create: true
   name: yoga
 
+monitoring:
+  serviceMonitor:
+    enabled: true
+    releaseLabel: yoga-monitoring
+    path: /metrics
+    interval: 30s
+    scrapeTimeout: 10s
+    scheme: http
+
 nameOverride: ""
 fullnameOverride: ""
 

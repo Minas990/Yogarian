@@ -1,0 +1,30 @@
+{{- range $serviceName, $service := .Values.services }}
+{{- if $service.enabled }}
+{{- if $.Values.monitoring.serviceMonitor.enabled }}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "yoga.serviceFullname" (dict "root" $ "serviceName" $serviceName) }}
+  namespace: {{ $.Values.namespace.name }}
+  labels:
+    {{- include "yoga.labels" $ | nindent 4 }}
+    app.kubernetes.io/component: {{ $serviceName }}
+    release: {{ $.Values.monitoring.serviceMonitor.releaseLabel }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ $.Values.namespace.name }}
+  selector:
+    matchLabels:
+      {{- include "yoga.selectorLabels" $ | nindent 6 }}
+      app.kubernetes.io/component: {{ $serviceName }}
+  endpoints:
+    - port: http
+      path: {{ default "/metrics" $.Values.monitoring.serviceMonitor.path }}
+      interval: {{ default "30s" $.Values.monitoring.serviceMonitor.interval }}
+      scrapeTimeout: {{ default "10s" $.Values.monitoring.serviceMonitor.scrapeTimeout }}
+      scheme: {{ default "http" $.Values.monitoring.serviceMonitor.scheme }}
+---
+{{- end }}
+{{- end }}
+{{- end }}

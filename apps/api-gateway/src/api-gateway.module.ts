@@ -6,6 +6,7 @@ import { LoggerModule } from '@app/common';
 import { JwtModule } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { AuthenticationMiddleware } from './middleware/authentication.middleware';
+import { PrometheusMetricsModule } from '@app/common/observability/prometheus-metrics.module';
 
 @Module({
   imports: [
